@@ -1,0 +1,148 @@
+---
+title: "Práctica 1: Sistema de Visualización de 7 Segmentos"
+description: Diseño e implementación de un sistema de visualización bidireccional (normal y espejo) basado en lógica combinacional, transistores y circuitos integrados TTL.
+---
+
+import SevenSegmentDisplay from '../../../../components/SevenSegmentDisplay.astro';
+import SevenSegmentAlphabet from '../../../../components/SevenSegmentAlphabet.astro';
+
+# Práctica 1: Visualizador de 7 Segmentos Bidireccional
+
+## Resumen
+
+Práctica asignada: **Visualizador de 7 segmentos** con implementación bidireccional:
+
+- Display frontal (normal) con **cátodo común** y términos mínimos.
+- Display trasero (espejo) con **ánodo común** y términos máximos.
+
+El sistema debe mostrar una palabra personalizada de 8 caracteres (letras y/o números), cumpliendo las restricciones del enunciado.
+
+## Fechas clave
+
+- Asignación del enunciado: **14/02/2026**
+- Fecha de entrega: **28/02/2026**
+- Fecha de calificación: **28/02/2026**
+
+## Objetivo
+
+Desarrollar un sistema físico funcional de visualización en 7 segmentos (normal y espejo), aplicando lógica combinacional simplificada con mapas de Karnaugh, integración híbrida con compuertas transistorizadas y TTL, simulación consolidada en Proteus y validación en laboratorio.
+
+## Requisitos
+
+- Mostrar una palabra de 8 caracteres.
+- Incluir mínimo 2 números.
+- Se permite repetir únicamente 1 carácter (letra o número) dentro de la palabra.
+- Implementar segmentos `a, c, d, f, g` con lógica transistorizada.
+- Implementar segmentos `b, e` y `pt` con compuertas TTL en protoboard.
+- Fabricar PCB etiquetadas para frontal y espejo.
+
+## Entradas/Salidas
+
+- Entradas:
+  - Variables booleanas del sistema combinacional.
+  - Selección de caracteres según el diseño definido por el equipo.
+- Salidas:
+  - Encendido correcto de segmentos para visualización frontal (cátodo común).
+  - Encendido correcto de segmentos para visualización espejo (ánodo común).
+  - Validación funcional en simulación y montaje físico.
+
+## Diseño (lógico/electrónico)
+
+- Simplificar funciones booleanas de cada segmento usando mapas de Karnaugh.
+- Aplicar términos mínimos para lógica positiva (frontal).
+- Aplicar términos máximos para lógica negativa (espejo).
+- Documentar esquemáticos de compuertas, diagrama de interconexión y criterios de diseño.
+
+### Palabra seleccionada
+
+`S1ST3M45`
+
+### Mapeo preliminar de caracteres a segmentos
+
+| Posición | Carácter | Segmentos | Punto Decimal |
+| :---: | :---: | :--- | :---: |
+| 1 | **S** | `b`, `e` | No |
+| 2 | **1** | `b`, `c` | Sí |
+| 3 | **S** | `b`, `e` | No |
+| 4 | **T** | `e`, `f`, `g` | No |
+| 5 | **3** | `a`, `b`, `c`, `d`, `g` | Sí |
+| 6 | **M** | `a`, `b`, `d`, `f` | No |
+| 7 | **4** | `b`, `c`, `f`, `g` | Sí |
+| 8 | **5** | `a`, `c`, `d`, `f`, `g` | Sí |
+
+### Referencia de abecedario en 7 segmentos
+
+Este catálogo resume una aproximación de letras, números y símbolos frecuentes usando un display de 7 segmentos.  
+Se utiliza como apoyo visual en el diseño de la codificación y en la definición de funciones booleanas por segmento.
+
+<SevenSegmentAlphabet />
+
+### Tabla de verdad / codificación
+
+La siguiente tabla define la codificación del sistema para cada combinación de entrada `ABC` (de `000` a `111`), asociada a un carácter de la palabra **S1ST3M45**.  
+Esta codificación corresponde a la visualización frontal de **cátodo común**: en cada salida (`a` a `g` y `dp`), el valor `1` indica segmento encendido y `0` indica segmento apagado. Para la visualización trasera de **ánodo común**, se utiliza la lógica invertida de estas salidas.
+
+| Dec | Entrada (ABC) | Letra | a | b | c | d | e | f | g | dp |
+|---:|:---:|:---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 000 | S | 0 | 1 | 0 | 0 | 1 | 0 | 0 | 0 |
+| 1 | 001 | 1 | 0 | 1 | 1 | 0 | 0 | 0 | 0 | 1 |
+| 2 | 010 | S | 0 | 1 | 0 | 0 | 1 | 0 | 0 | 0 |
+| 3 | 011 | T | 0 | 0 | 0 | 0 | 1 | 1 | 1 | 0 |
+| 4 | 100 | 3 | 1 | 1 | 1 | 1 | 0 | 0 | 1 | 1 |
+| 5 | 101 | M | 1 | 1 | 0 | 1 | 0 | 1 | 0 | 0 |
+| 6 | 110 | 4 | 0 | 1 | 1 | 0 | 0 | 1 | 1 | 1 |
+| 7 | 111 | 5 | 1 | 0 | 1 | 1 | 0 | 1 | 1 | 1 |
+
+### Prototipo de Visualización Interactiva (Sistema de 8 caracteres)
+
+Este prototipo digital muestra ambas representaciones del sistema: **cátodo común (frontal)** y **ánodo común (trasero en espejo)**. Permite visualizar la palabra seleccionada (**S1ST3M45**), verificar la distribución de los segmentos (etiquetados de **A** a **G**) y comparar el comportamiento entre ambas configuraciones antes del montaje físico.
+
+<SevenSegmentDisplay />
+
+## Implementación (simulación/montaje/pcb)
+
+- Simulación completa en Proteus en **un solo archivo** `.pdsprj` (sin módulos separados).
+- Montaje en protoboard para las partes TTL.
+- Fabricación de placas PCB para compuertas transistorizadas (frontal y espejo).
+- Integración final del sistema híbrido PCB + protoboard.
+
+## Pruebas
+
+- Verificación de encendido por segmento en ambos displays.
+- Comparación de salida esperada vs salida observada.
+- Pruebas de casos representativos de la palabra elegida.
+- Registro de fallos y correcciones aplicadas.
+
+## Evidencias
+
+- Capturas de simulación en Proteus.
+- Fotografías del montaje físico.
+- Evidencia de PCB fabricadas y etiquetadas.
+- Tabla o registro de pruebas funcionales.
+
+## Presupuesto
+
+- Listado de materiales (resistencias, transistores, compuertas TTL 74xx, LEDs, PCB, cables).
+- Cantidades y costos unitarios.
+- Fuentes de cotización y fecha de consulta.
+
+## Conclusiones
+
+Documentar cumplimiento de objetivos, diferencias entre cátodo/ánodo común, problemas encontrados en implementación híbrida y mejoras para iteraciones futuras.
+
+## Entregables oficiales de la práctica
+
+- Archivo de simulación `.pdsprj` consolidado.
+- Documento técnico PDF (funciones, K-map, diagramas, presupuesto, roles y conclusiones).
+- Repositorio GitHub del grupo con estructura organizada.
+- Evidencias de PCB y montaje en protoboard.
+- Enlace oficial de entrega (UEDI/Classroom según corresponda).
+
+## Entregables y evidencias
+
+- Informe técnico final en PDF (con anexos).
+- Archivo de simulación consolidado en Proteus (`.pdsprj`).
+- Evidencias del montaje físico (fotos y/o videos).
+- Esquemáticos y diagramas del diseño.
+- Evidencia del diseño/fabricación de PCB.
+- Presupuesto con fuentes de cotización.
