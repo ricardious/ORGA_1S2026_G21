@@ -1,0 +1,173 @@
+---
+interface Props {
+  charLabel?: string;
+  activeSegments?: string[];
+  dp?: boolean;
+  mirrored?: boolean;
+  showLabels?: boolean;
+  glowId?: string;
+  maxWidth?: number;
+}
+
+const {
+  charLabel = "",
+  activeSegments = [],
+  dp = false,
+  mirrored = false,
+  showLabels = true,
+  glowId = "glow-filter",
+  maxWidth = 112,
+} = Astro.props as Props;
+
+const segments = {
+  a: "278.759,55.26 242.759,91.26 98.759,91.26 62.759,55.26 98.759,19.26 242.759,19.26",
+  b: "287.759,64.427 323.759,100.427 323.759,244.427 287.759,280.427 251.759,244.427 251.759,100.427",
+  c: "287.759,295.928 323.759,331.928 323.759,475.928 287.759,511.928 251.759,475.928 251.759,331.928",
+  d: "278.759,520.74 242.759,556.74 98.759,556.74 62.759,520.74 98.759,484.74 242.759,484.74",
+  e: "53.758,295.928 89.758,331.928 89.758,475.928 53.758,511.928 17.758,475.928 17.758,331.928",
+  f: "53.758,64.427 89.759,100.427 89.759,244.427 53.758,280.427 17.758,244.427 17.758,100.427",
+  g: "278.759,287.927 242.759,323.928 98.759,323.928 62.759,287.927 98.759,251.927 242.759,251.927",
+};
+
+const segmentLabels = {
+  a: { x: 170, y: 65, text: "A" },
+  b: { x: 295, y: 165, text: "B" },
+  c: { x: 295, y: 400, text: "C" },
+  d: { x: 170, y: 530, text: "D" },
+  e: { x: 45, y: 400, text: "E" },
+  f: { x: 45, y: 165, text: "F" },
+  g: { x: 170, y: 295, text: "G" },
+};
+---
+
+<div class="ssd-digit-box">
+  {charLabel && <span class="ssd-char-label">{charLabel}</span>}
+  <div class="ssd-svg-wrapper" style={`--ssd-max-width: ${maxWidth}px;`}>
+    <svg
+      viewBox="0 0 432 576"
+      class:list={["ssd-svg", mirrored && "is-mirror"]}
+    >
+      <defs>
+        <filter id={glowId} x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="6" result="coloredBlur"
+          ></feGaussianBlur>
+          <feMerge>
+            <feMergeNode in="coloredBlur"></feMergeNode>
+            <feMergeNode in="SourceGraphic"></feMergeNode>
+          </feMerge>
+        </filter>
+      </defs>
+
+      <g class="ssd-bg-segments">
+        {
+          Object.entries(segments).map(([, points]) => (
+            <polygon points={points} />
+          ))
+        }
+        <circle cx="373.241" cy="515.74" r="41"></circle>
+      </g>
+
+      <g class="ssd-active-segments" filter={`url(#${glowId})`}>
+        {
+          activeSegments.map((segKey) => (
+            <polygon
+              points={segments[segKey as keyof typeof segments]}
+              class="ssd-seg-on"
+            />
+          ))
+        }
+        {dp && <circle cx="373.241" cy="515.74" r="41" class="ssd-seg-on" />}
+      </g>
+
+      {
+        showLabels && (
+          <g class="ssd-labels">
+            {Object.entries(segmentLabels).map(([, label]) => (
+              <text
+                x={label.x}
+                y={label.y}
+                text-anchor="middle"
+                dominant-baseline="middle"
+              >
+                {label.text}
+              </text>
+            ))}
+            <text
+              x="373"
+              y="520"
+              text-anchor="middle"
+              dominant-baseline="middle"
+              font-size="24"
+            >
+              DP
+            </text>
+          </g>
+        )
+      }
+    </svg>
+  </div>
+</div>
+
+<style>
+  .ssd-digit-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .ssd-char-label {
+    font-size: clamp(0.78rem, 1.4vw, 1.1rem);
+    font-weight: bold;
+    margin-bottom: 0.45rem;
+    opacity: 0.9;
+    text-align: center;
+    color: currentColor;
+    line-height: 1;
+  }
+
+  .ssd-svg-wrapper {
+    width: 100%;
+    aspect-ratio: 432 / 576;
+    max-width: var(--ssd-max-width);
+  }
+
+  .ssd-svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .ssd-svg.is-mirror {
+    transform: scaleX(-1);
+    transform-origin: center;
+  }
+
+  .ssd-bg-segments polygon,
+  .ssd-bg-segments circle {
+    fill: rgba(100, 0, 0, 0.05);
+    stroke: rgba(150, 0, 0, 0.2);
+    stroke-width: 2;
+  }
+
+  .ssd-labels text {
+    fill: currentColor;
+    font-size: 28px;
+    font-weight: bold;
+    font-family: Arial, sans-serif;
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  .ssd-seg-on {
+    fill: #ff0000;
+    stroke: #ff9999;
+    stroke-width: 1;
+  }
+
+  @media (max-width: 768px) {
+    .ssd-svg-wrapper {
+      max-width: calc(var(--ssd-max-width) * 0.66);
+    }
+  }
+</style>
