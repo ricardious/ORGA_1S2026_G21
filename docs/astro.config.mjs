@@ -7,7 +7,13 @@ import { ion } from "starlight-ion-theme";
 export default defineConfig({
   integrations: [
     starlight({
-      title: "My Docs",
+      title: "ORGA_1S2026_G21",
+      locales: {
+        root: {
+          label: "Español",
+          lang: "es",
+        },
+      },
       social: [
         {
           icon: "github",
@@ -17,15 +23,43 @@ export default defineConfig({
       ],
       sidebar: [
         {
-          label: "Guides",
+          label: "Inicio",
+          link: "/",
+        },
+        {
+          label: "Prácticas",
           items: [
-            // Each item here is one entry in the navigation menu.
-            { label: "Example Guide", slug: "guides/example" },
+            { label: "Vista general", link: "/practicas/" },
+            { label: "Práctica 1", link: "/practicas/practica-1/" },
           ],
         },
         {
-          label: "Reference",
-          autogenerate: { directory: "reference" },
+          label: "Proyectos",
+          autogenerate: { directory: "proyectos" },
+        },
+        {
+          label: "Simulaciones",
+          autogenerate: { directory: "simulaciones" },
+        },
+        {
+          label: "PCB y esquemáticos",
+          autogenerate: { directory: "pcb" },
+        },
+        {
+          label: "Evidencias",
+          autogenerate: { directory: "evidencias" },
+        },
+        {
+          label: "Presupuestos",
+          autogenerate: { directory: "presupuestos" },
+        },
+        {
+          label: "Plantillas",
+          autogenerate: { directory: "plantillas" },
+        },
+        {
+          label: "Apuntes",
+          autogenerate: { directory: "apuntes" },
         },
       ],
       plugins: [ion()],
