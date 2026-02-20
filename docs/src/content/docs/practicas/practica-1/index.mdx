@@ -93,6 +93,163 @@ Esta codificación corresponde a la visualización frontal de **cátodo común**
 | 6 | 110 | 4 | 0 | 1 | 1 | 0 | 0 | 1 | 1 | 1 |
 | 7 | 111 | 5 | 1 | 0 | 1 | 1 | 0 | 1 | 1 | 1 |
 
+### Karnaugh y ecuaciones finales (todos los segmentos)
+
+Convención usada en todos los mapas: columnas `BC = 00, 01, 11, 10`.
+
+#### Segmento a
+
+K-map:
+
+| A\BC | 00 | 01 | 11 | 10 |
+| :--: | :-: | :-: | :-: | :-: |
+| 0 | 0 | 0 | 0 | 0 |
+| 1 | 1 | 1 | 1 | 0 |
+
+Grupos:
+- `(A=1, BC=00 y 01) -> AB'`
+- `(A=1, BC=01 y 11) -> AC`
+
+Ecuación mínima:
+- `a = AB' + AC`
+
+#### Segmento b
+
+K-map:
+
+| A\BC | 00 | 01 | 11 | 10 |
+| :--: | :-: | :-: | :-: | :-: |
+| 0 | 1 | 1 | 0 | 1 |
+| 1 | 1 | 1 | 0 | 1 |
+
+Grupos:
+- `Grupo de 4 en columnas 00 y 01 (ambas filas) -> B'`
+- `Grupo de 4 en columnas 00 y 10 (wrap, ambas filas) -> C'`
+
+Ecuación mínima:
+- `b = B' + C'`
+
+#### Segmento c
+
+K-map:
+
+| A\BC | 00 | 01 | 11 | 10 |
+| :--: | :-: | :-: | :-: | :-: |
+| 0 | 0 | 1 | 0 | 0 |
+| 1 | 1 | 0 | 1 | 1 |
+
+Grupos:
+- `(A=1, columnas 11 y 10) -> AB`
+- `(A=1, columnas 00 y 10 wrap) -> AC'`
+- `1 aislado en (A=0, BC=01) -> A'B'C`
+
+Ecuación mínima:
+- `c = AB + AC' + A'B'C`
+
+#### Segmento d
+
+Este mapa es idéntico al de `a`.
+
+K-map:
+
+| A\BC | 00 | 01 | 11 | 10 |
+| :--: | :-: | :-: | :-: | :-: |
+| 0 | 0 | 0 | 0 | 0 |
+| 1 | 1 | 1 | 1 | 0 |
+
+Grupos:
+- `(00 y 01) -> AB'`
+- `(01 y 11) -> AC`
+
+Ecuación mínima:
+- `d = AB' + AC`
+
+#### Segmento e
+
+K-map:
+
+| A\BC | 00 | 01 | 11 | 10 |
+| :--: | :-: | :-: | :-: | :-: |
+| 0 | 1 | 0 | 1 | 1 |
+| 1 | 0 | 0 | 0 | 0 |
+
+Grupos:
+- `(A=0, columnas 11 y 10) -> A'B`
+- `(A=0, columnas 00 y 10 wrap) -> A'C'`
+
+Ecuación mínima:
+- `e = A'B + A'C'`
+- `e = A'(B + C')`
+
+#### Segmento f
+
+K-map:
+
+| A\BC | 00 | 01 | 11 | 10 |
+| :--: | :-: | :-: | :-: | :-: |
+| 0 | 0 | 0 | 1 | 0 |
+| 1 | 0 | 1 | 1 | 1 |
+
+Grupos:
+- `Columna 11 vertical (ambas filas) -> BC`
+- `(A=1, columnas 11 y 10) -> AB`
+- `(A=1, columnas 01 y 11) -> AC`
+
+Ecuación mínima:
+- `f = AB + AC + BC`
+
+#### Segmento g
+
+K-map:
+
+| A\BC | 00 | 01 | 11 | 10 |
+| :--: | :-: | :-: | :-: | :-: |
+| 0 | 0 | 0 | 1 | 0 |
+| 1 | 1 | 0 | 1 | 1 |
+
+Grupos:
+- `Columna 11 vertical (ambas filas) -> BC`
+- `(A=1, columnas 00 y 10 wrap) -> AC'`
+
+Ecuación mínima:
+- `g = BC + AC'`
+
+#### Punto decimal (dp)
+
+`dp` tiene el mismo patrón que `c`.
+
+K-map:
+
+| A\BC | 00 | 01 | 11 | 10 |
+| :--: | :-: | :-: | :-: | :-: |
+| 0 | 0 | 1 | 0 | 0 |
+| 1 | 1 | 0 | 1 | 1 |
+
+Grupos:
+- `(A=1, 11 y 10) -> AB`
+- `(A=1, 00 y 10 wrap) -> AC'`
+- `(A=0, BC=01 solo) -> A'B'C`
+
+Ecuación mínima:
+- `dp = AB + AC' + A'B'C`
+
+### Hoja de ecuaciones definitiva
+
+Entradas: `A, B, C`
+
+Salidas: `a, b, c, d, e, f, g, pt`
+
+Ecuaciones SOP mínimas:
+
+- `a = AB' + AC`
+- `b = B' + C'`
+- `c = AB + AC' + A'B'C`
+- `d = AB' + AC`
+- `e = A'B + A'C'`
+- `f = AB + AC + BC`
+- `g = BC + AC'`
+- `pt = AB + AC' + A'B'C`
+
 ### Prototipo de Visualización Interactiva (Sistema de 8 caracteres)
 
 Este prototipo digital muestra ambas representaciones del sistema: **cátodo común (frontal)** y **ánodo común (trasero en espejo)**. Permite visualizar la palabra seleccionada (**S1ST3M45**), verificar la distribución de los segmentos (etiquetados de **A** a **G**) y comparar el comportamiento entre ambas configuraciones antes del montaje físico.
