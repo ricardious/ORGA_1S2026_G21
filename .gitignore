@@ -1,0 +1,5 @@
+# Proteus temporary/local files
+*.pdsbak
+*.workspace
+*.tmp
+
