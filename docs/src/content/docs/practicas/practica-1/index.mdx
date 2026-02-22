@@ -263,6 +263,85 @@ Este prototipo digital muestra ambas representaciones del sistema: **cátodo com
 - Fabricación de placas PCB para compuertas transistorizadas (frontal y espejo).
 - Integración final del sistema híbrido PCB + protoboard.
 
+### Bloques transistorizados usados (diagramas de referencia)
+
+Los siguientes diagramas se usaron como **bloques base de compuertas transistorizadas** para implementar la lógica de los segmentos del display de **cátodo común** (salidas activas en `1`).
+
+Su propósito fue:
+
+- Documentar la topología de cada compuerta hecha con transistores (como interruptores).
+- Reutilizar bloques (NOT, AND, OR) al construir las ecuaciones de cada segmento.
+- Facilitar la validación visual antes de llevar el diseño a simulación/PCB.
+
+#### 1) Inversor (`NOT`)
+
+Se usa para generar variables complementadas, por ejemplo `A'`, `B'` o `C'`, que aparecen en varias ecuaciones SOP.
+
+Ejemplos de uso:
+
+- `a = AB' + AC` requiere `B'`
+- `g = BC + AC'` requiere `C'`
+- `e = A'B + A'C'` requiere `A'` y `C'`
+
+<img src="/svg/practicas/practica-1/inversor_notA_schemdraw.svg" alt="Compuerta inversora transistorizada (NOT)" />
+
+#### 2) AND de 2 entradas
+
+Este bloque genera **términos producto de 2 variables**. Se utilizó para formar términos intermedios que luego se suman con OR.
+
+Ejemplos de uso:
+
+- `AB'`, `AC`, `BC`, `AC'`, `A'B`
+
+<img src="/svg/practicas/practica-1/and_transistor_switches_clean.svg" alt="Compuerta AND transistorizada de 2 entradas" />
+
+#### 3) OR de 2 entradas
+
+Este bloque combina dos términos producto para obtener ecuaciones SOP de dos términos.
+
+Ejemplos directos en segmentos:
+
+- `a = AB' + AC`
+- `d = AB' + AC`
+- `g = BC + AC'`
+- `b = B' + C'`
+
+<img src="/svg/practicas/practica-1/or_transistor_switches_clean_v2.svg" alt="Compuerta OR transistorizada de 2 entradas" />
+
+#### 4) AND de 3 entradas
+
+Se utilizó cuando un término mínimo no puede simplificarse más y requiere tres variables en producto.
+
+Ejemplo principal:
+
+- `A'B'C` en las ecuaciones de `c` y `pt`
+
+<img src="/svg/practicas/practica-1/and3_transistor_switches_clean.svg" alt="Compuerta AND transistorizada de 3 entradas" />
+
+#### 5) OR de 3 entradas
+
+Se utilizó para sumar tres términos cuando la ecuación final del segmento tiene tres productos.
+
+Ejemplos en el diseño:
+
+- `c = AB + AC' + A'B'C`
+- `f = AB + AC + BC`
+- `pt = AB + AC' + A'B'C`
+
+<img src="/svg/practicas/practica-1/or3_transistor_switches_clean_v5.svg" alt="Compuerta OR transistorizada de 3 entradas" />
+
+#### Cómo se integraron en el diseño de segmentos
+
+El flujo de implementación fue el siguiente:
+
+1. Se obtuvo la ecuación mínima por segmento con mapas de Karnaugh.
+2. Se generaron primero las señales invertidas necesarias (`A'`, `B'`, `C'`) con el bloque `NOT`.
+3. Se construyeron los términos producto con bloques `AND` de 2 o 3 entradas.
+4. Se combinaron los términos con bloques `OR` de 2 o 3 entradas para producir la salida final del segmento.
+5. Cada salida resultante se conectó al segmento correspondiente del display de cátodo común.
+
+Estos diagramas funcionan como **documentación modular del diseño**, y además sirven como referencia para pasar de la ecuación booleana al esquema eléctrico transistorizado.
+
 ## Pruebas
 
 - Verificación de encendido por segmento en ambos displays.
