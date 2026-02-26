@@ -252,24 +252,36 @@ Ecuaciones SOP mínimas:
 
 ### Tabla de verdad para ánodo común (espejo)
 
-Para la visualización trasera con **ánodo común**, la lógica es **activa en bajo**: un `0` en la salida enciende el segmento y un `1` lo apaga. La tabla es el complemento de la tabla de cátodo.
+Para la visualización trasera con **ánodo común** y **espejo horizontal**, se aplican dos pasos:
+1. **Intercambio de columnas por espejo:** `b ↔ f` y `c ↔ e`. (`a`, `d`, `g` y `dp` no cambian).
+2. **Lógica activa en bajo:** se invierte cada salida (en ánodo, `0` enciende y `1` apaga).
+
+Intercambio columna por columna:
+- `a` se mantiene igual.
+- `b` toma los valores de `f`.
+- `c` toma los valores de `e`.
+- `d` se mantiene igual.
+- `e` toma los valores de `c`.
+- `f` toma los valores de `b`.
+- `g` se mantiene igual.
+- `dp` se mantiene igual.
 
 | Dec | Entrada (ABC) | Letra | a | b | c | d | e | f | g | dp |
 |---:|:---:|:---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 0 | 000 | S | 1 | 0 | 1 | 1 | 0 | 1 | 1 | 1 |
-| 1 | 001 | 1 | 1 | 0 | 0 | 1 | 1 | 1 | 1 | 0 |
-| 2 | 010 | S | 1 | 0 | 1 | 1 | 0 | 1 | 1 | 1 |
-| 3 | 011 | T | 1 | 1 | 1 | 1 | 0 | 0 | 0 | 1 |
-| 4 | 100 | 3 | 0 | 0 | 0 | 0 | 1 | 1 | 0 | 0 |
+| 0 | 000 | S | 1 | 1 | 0 | 1 | 1 | 0 | 1 | 1 |
+| 1 | 001 | 1 | 1 | 1 | 1 | 1 | 0 | 0 | 1 | 0 |
+| 2 | 010 | S | 1 | 1 | 0 | 1 | 1 | 0 | 1 | 1 |
+| 3 | 011 | T | 1 | 0 | 0 | 1 | 1 | 1 | 0 | 1 |
+| 4 | 100 | 3 | 0 | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
 | 5 | 101 | M | 0 | 0 | 1 | 0 | 1 | 0 | 1 | 1 |
-| 6 | 110 | 4 | 1 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
-| 7 | 111 | 5 | 0 | 1 | 0 | 0 | 1 | 0 | 0 | 0 |
+| 6 | 110 | 4 | 1 | 0 | 1 | 1 | 0 | 0 | 0 | 0 |
+| 7 | 111 | 5 | 0 | 0 | 1 | 0 | 0 | 1 | 0 | 0 |
 
 > En esta tabla, `0` = segmento **encendido** (activo bajo) y `1` = segmento **apagado**.
 
 ### Karnaugh y ecuaciones POS — Ánodo común (todos los segmentos)
 
-Para ánodo común se utilizan **términos máximos** (maxterms). En los K-maps se agrupan los **ceros** (posiciones donde el segmento está encendido en ánodo = posiciones donde cátodo vale `1`) para obtener la forma **POS (Producto de Sumas)**.
+Para ánodo común se utilizan **términos máximos** (maxterms). En los K-maps se agrupan los **ceros** (posiciones donde el segmento está encendido en ánodo), que corresponden a las posiciones **1 del cátodo ya reflejado** (`b ↔ f`, `c ↔ e`), para obtener la forma **POS (Producto de Sumas)**.
 
 Convención usada en todos los mapas: columnas `BC = 00, 01, 11, 10`.
 
@@ -295,15 +307,16 @@ K-map (ánodo):
 
 | A\BC | 00 | 01 | 11 | 10 |
 | :--: | :-: | :-: | :-: | :-: |
-| 0 | 0 | 0 | 1 | 0 |
-| 1 | 0 | 0 | 1 | 0 |
+| 0 | 1 | 1 | 0 | 1 |
+| 1 | 1 | 0 | 0 | 0 |
 
 Grupos de 0s:
-- `Columnas 00 y 01 (ambas filas, 4 celdas) → factor B`
-- `Columnas 00 y 10 (wrap, ambas filas, 4 celdas) → factor C`
+- `Columna 11 (ambas filas, 2 celdas) → factor (B' + C')`
+- `A=1, columnas 01 y 11 → factor (A' + C')`
+- `A=1, columnas 11 y 10 → factor (A' + B')`
 
 Ecuación POS:
-- `b = BC`
+- `b = (A' + B')(A' + C')(B' + C')`
 
 #### Segmento c (ánodo)
 
@@ -311,16 +324,15 @@ K-map (ánodo):
 
 | A\BC | 00 | 01 | 11 | 10 |
 | :--: | :-: | :-: | :-: | :-: |
-| 0 | 1 | 0 | 1 | 1 |
-| 1 | 0 | 1 | 0 | 0 |
+| 0 | 0 | 1 | 0 | 0 |
+| 1 | 1 | 1 | 1 | 1 |
 
 Grupos de 0s:
-- `(A=1, BC=00 y 10 wrap) → factor (A' + C)`
-- `(A=1, BC=10 y 11) → factor (A' + B')`
-- `(A=0, BC=01) aislado → factor (A + B + C')`
+- `A=0, columnas 10 y 11 → factor (A + B')`
+- `A=0, columnas 00 y 10 (wrap) → factor (A + C)`
 
 Ecuación POS:
-- `c = (A' + C)(A' + B')(A + B + C')`
+- `c = (A + B')(A + C)`
 
 #### Segmento d (ánodo)
 
@@ -346,15 +358,16 @@ K-map (ánodo):
 
 | A\BC | 00 | 01 | 11 | 10 |
 | :--: | :-: | :-: | :-: | :-: |
-| 0 | 0 | 1 | 0 | 0 |
-| 1 | 1 | 1 | 1 | 1 |
+| 0 | 1 | 0 | 1 | 1 |
+| 1 | 0 | 1 | 0 | 0 |
 
 Grupos de 0s:
-- `(A=0, BC=00 y 10 wrap) → factor (A + C)`
-- `(A=0, BC=10 y 11) → factor (A + B')`
+- `A=1, columnas 10 y 11 → factor (A' + B')`
+- `A=1, columnas 00 y 10 → factor (A' + C)`
+- `A=0, columna 01 (aislado) → factor (A + B + C')`
 
 Ecuación POS:
-- `e = (A + C)(A + B')`
+- `e = (A' + B')(A' + C)(A + B + C')`
 
 #### Segmento f (ánodo)
 
@@ -362,16 +375,15 @@ K-map (ánodo):
 
 | A\BC | 00 | 01 | 11 | 10 |
 | :--: | :-: | :-: | :-: | :-: |
-| 0 | 1 | 1 | 0 | 1 |
-| 1 | 1 | 0 | 0 | 0 |
+| 0 | 0 | 0 | 1 | 0 |
+| 1 | 0 | 0 | 1 | 0 |
 
 Grupos de 0s:
-- `Columna 11 vertical (ambas filas) → factor (B' + C')`
-- `(A=1, BC=01 y 11) → factor (A' + C')`
-- `(A=1, BC=10 y 11) → factor (A' + B')`
+- `Columnas 00 y 01 (ambas filas, 4 celdas) → factor B`
+- `Columnas 00 y 10 (wrap, ambas filas, 4 celdas) → factor C`
 
 Ecuación POS:
-- `f = (B' + C')(A' + C')(A' + B')`
+- `f = BC`
 
 #### Segmento g (ánodo)
 
@@ -391,7 +403,7 @@ Ecuación POS:
 
 #### Punto decimal dp (ánodo)
 
-`dp` tiene el mismo patrón que `c` (ánodo).
+`dp` tiene el mismo patrón que `e` (ánodo).
 
 K-map (ánodo):
 
@@ -401,12 +413,12 @@ K-map (ánodo):
 | 1 | 0 | 1 | 0 | 0 |
 
 Grupos de 0s:
-- `(A=1, BC=00 y 10 wrap) → factor (A' + C)`
-- `(A=1, BC=10 y 11) → factor (A' + B')`
-- `(A=0, BC=01) aislado → factor (A + B + C')`
+- `A=1, columnas 10 y 11 → factor (A' + B')`
+- `A=1, columnas 00 y 10 → factor (A' + C)`
+- `A=0, columna 01 (aislado) → factor (A + B + C')`
 
 Ecuación POS:
-- `dp = (A' + C)(A' + B')(A + B + C')`
+- `dp = (A' + B')(A' + C)(A + B + C')`
 
 ### Hoja de ecuaciones definitiva — Ánodo común (espejo)
 
@@ -417,13 +429,13 @@ Salidas: `a, b, c, d, e, f, g, dp`
 Ecuaciones POS (Producto de Sumas):
 
 - `a = (A' + B)(A' + C')`
-- `b = BC`
-- `c = (A' + C)(A' + B')(A + B + C')`
+- `b = (A' + B')(A' + C')(B' + C')`
+- `c = (A + B')(A + C)`
 - `d = (A' + B)(A' + C')`
-- `e = (A + C)(A + B')`
-- `f = (B' + C')(A' + C')(A' + B')`
+- `e = (A' + B')(A' + C)(A + B + C')`
+- `f = BC`
 - `g = (B' + C')(A' + C)`
-- `dp = (A' + C)(A' + B')(A + B + C')`
+- `dp = (A' + B')(A' + C)(A + B + C')`
 
 ### Prototipo de Visualización Interactiva (Sistema de 8 caracteres)
 
