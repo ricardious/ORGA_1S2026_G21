@@ -6,8 +6,6 @@ description: Diseño e implementación de un sistema de visualización bidirecci
 import SevenSegmentDisplay from '../../../../components/SevenSegmentDisplay.astro';
 import SevenSegmentAlphabet from '../../../../components/SevenSegmentAlphabet.astro';
 
-# Práctica 1: Visualizador de 7 Segmentos Bidireccional
-
 ## Resumen
 
 Práctica asignada: **Visualizador de 7 segmentos** con implementación bidireccional:
@@ -650,29 +648,47 @@ Estado final del armado físico usado para validación en laboratorio.
 Captura adicional del montaje físico con el circuito integrado en etapa de validación.
 <img src="/media/practicas/practica-1/montaje/evidencia_montaje_06.webp" alt="Evidencia de montaje físico 6" />
 
+## Componentes permitidos
+
+| Nombre del componente | Código / Especificación |
+|---|---|
+| Compuerta AND | `74LS08` |
+| Compuerta OR | `74LS32` |
+| Compuerta NOT | `74LS04` |
+| Compuerta XOR | `74LS86` |
+| Transistores NPN/PNP | `2N2222A` |
+| Resistencias | Diversos valores sin diseño |
+| DIP Switch | Configurador de entrada manual |
+| LED (diodo emisor de luz) | Indicador visual para segmentos |
+
 ## Presupuesto
 
-- Listado de materiales (resistencias, transistores, compuertas TTL 74xx, LEDs, PCB, cables).
-- Cantidades y costos unitarios.
-- Fuentes de cotización y fecha de consulta.
+| Cantidad | Descripción del componente | Precio unitario (Q) | Subtotal (Q) |
+|---:|---|---:|---:|
+| 1 | Display 7 segmentos cátodo común | 5.00 | 5.00 |
+| 1 | Display 7 segmentos ánodo común | 5.00 | 5.00 |
+| 50 | Transistores NPN 2N2222A | 2.00 | 100.00 |
+| 10 | Circuitos integrados TTL (`74LS08`, `74LS32`, `74LS04`) | 6.00 | 60.00 |
+| 200 | Resistencias (varios valores: `220Ω`, `1kΩ`) | 0.50 | 100.00 |
+| 2 | DIP Switch | 8.00 | 16.00 |
+| 2 | Placas de cobre vírgenes (para PCB) | 12.00 | 24.00 |
+| 2 | Impresiones para la placa | 8.00 | 16.00 |
+| 1 | Kit de cloruro férrico (para grabado de PCB) | 8.00 | 8.00 |
+| 7 | Protoboard | 45.00 | 315.00 |
+| 1 | Rollo pequeño de estaño y pasta para soldar | 20.00 | 20.00 |
+| 25 | Cable jumper / alambre para conexiones | 1.00 | 25.00 |
+
+**Total estimado:** `Q 694.00`
 
 ## Conclusiones
 
-Documentar cumplimiento de objetivos, diferencias entre cátodo/ánodo común, problemas encontrados en implementación híbrida y mejoras para iteraciones futuras.
+La práctica cumplió el objetivo de diseñar e implementar un visualizador bidireccional de 7 segmentos, validando tanto la versión frontal en cátodo común como la versión trasera en ánodo común con comportamiento espejo.
 
-## Entregables oficiales de la práctica
+El proceso de simplificación con mapas de Karnaugh permitió obtener ecuaciones mínimas y traducirlas a bloques físicos reutilizables (`NOT`, `AND`, `OR`, `NAND`), lo que facilitó la construcción modular del DEC y la trazabilidad entre ecuación booleana, simulación y montaje.
 
-- Archivo de simulación `.pdsprj` consolidado.
-- Documento técnico PDF (funciones, K-map, diagramas, presupuesto, roles y conclusiones).
-- Repositorio GitHub del grupo con estructura organizada.
-- Evidencias de PCB y montaje en protoboard.
-- Enlace oficial de entrega (UEDI/Classroom según corresponda).
+Se confirmó en Proteus y en el armado físico que la lógica de cátodo común opera con salidas activas en alto, mientras que la de ánodo común requiere inversión y adaptación en forma POS (activa en bajo), diferencia clave para evitar errores de interpretación durante la implementación.
 
-## Entregables y evidencias
+La integración híbrida de compuertas transistorizadas, TTL en protoboard y PCB evidenció desafíos de interconexión y orden de cableado; documentar el circuito por bloques y por evidencias de montaje fue determinante para depuración y validación.
 
-- Informe técnico final en PDF (con anexos).
-- Archivo de simulación consolidado en Proteus (`.pdsprj`).
-- Evidencias del montaje físico (fotos y/o videos).
-- Esquemáticos y diagramas del diseño.
-- Evidencia del diseño/fabricación de PCB.
-- Presupuesto con fuentes de cotización.
+Como mejora para iteraciones futuras, se recomienda estandarizar desde el inicio el etiquetado de señales, preparar una matriz de pruebas por segmento y automatizar la optimización de recursos gráficos/documentales para mantener consistencia técnica y claridad de entrega.
+
