@@ -1,6 +1,6 @@
 ---
-title: "Práctica 2: Documento Técnico"
-description: Estructura base para documentar diseño, simulación, implementación y validación de la práctica 2.
+title: "Práctica 2: Lógica Binaria y Combinacional (LogicCalc)"
+description: Diseño e implementación de una ALU combinacional (LogicCalc) con operaciones aritméticas, lógicas y comparativas.
 ---
 
 ## Resumen
