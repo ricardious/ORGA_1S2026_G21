@@ -495,7 +495,18 @@ Ejemplos directos en segmentos:
 
 <img src="/svg/practicas/practica-1/or_transistor_switches_clean_v2.svg" alt="Compuerta OR transistorizada de 2 entradas" />
 
-#### 4) AND de 3 entradas
+#### 4) NAND de 2 entradas
+
+Este bloque implementa la compuerta `NAND`, útil como bloque universal y para realizar inversión lógica combinada sobre términos producto.
+
+Ejemplos de uso:
+
+- `(AB)'`
+- Implementaciones equivalentes de `NOT`, `AND` y `OR` usando solo `NAND`
+
+<img src="/svg/practicas/practica-1/nand_transistor_style_clean_v3.svg" alt="Compuerta NAND transistorizada de 2 entradas" />
+
+#### 5) AND de 3 entradas
 
 Se utilizó cuando un término mínimo no puede simplificarse más y requiere tres variables en producto.
 
@@ -505,7 +516,7 @@ Ejemplo principal:
 
 <img src="/svg/practicas/practica-1/and3_transistor_switches_clean.svg" alt="Compuerta AND transistorizada de 3 entradas" />
 
-#### 5) OR de 3 entradas
+#### 6) OR de 3 entradas
 
 Se utilizó para sumar tres términos cuando la ecuación final del segmento tiene tres productos.
 
@@ -536,12 +547,108 @@ Estos diagramas funcionan como **documentación modular del diseño**, y además
 - Pruebas de casos representativos de la palabra elegida.
 - Registro de fallos y correcciones aplicadas.
 
+### Evidencia animada de combinaciones (cátodo y ánodo)
+
+Secuencia de pruebas en Proteus para combinaciones de entrada, mostrando el comportamiento por segmento en ambas configuraciones.
+
+<img src="/svg/practicas/practica-1/segmentos_catodo_anodo_combinaciones.webp" alt="Pruebas animadas en Proteus por combinaciones de entrada para cátodo y ánodo" />
+
 ## Evidencias
 
 - Capturas de simulación en Proteus.
 - Fotografías del montaje físico.
 - Evidencia de PCB fabricadas y etiquetadas.
 - Tabla o registro de pruebas funcionales.
+
+### Evidencias Proteus - Construcción del DEC
+
+#### Cátodo común
+
+##### Segmentos a y d
+Para `a` y `d` se usó la misma ecuación SOP: `AB' + AC`. El armado se hizo en tres etapas: `NOT` para obtener `B'`, dos bloques `AND` para formar `AB'` y `AC`, y un `OR` final para unir ambos términos.
+<img src="/media/practicas/practica-1/construccion/build_seg_a_d_catodo_kmap.webp" alt="Construcción en Proteus para segmentos a y d en cátodo común" />
+
+##### Segmento b
+El segmento `b` responde a `B' + C'`. Se implementó con dos inversores `NOT` (para `B` y `C`) y un `OR` de 2 entradas para generar la salida activa en alto del cátodo común.
+<img src="/media/practicas/practica-1/construccion/build_seg_b_catodo_kmap.webp" alt="Construcción en Proteus para segmento b en cátodo común" />
+
+##### Segmento c
+Para `c` se montó `AB + AC' + A'B'C`. Se generaron complementos con `NOT`, luego dos `AND` de 2 entradas (`AB`, `AC'`) y un `AND` de 3 entradas (`A'B'C`); finalmente se combinó todo con `OR` de 3 entradas.
+<img src="/media/practicas/practica-1/construccion/build_seg_c_catodo_kmap.webp" alt="Construcción en Proteus para segmento c en cátodo común" />
+
+##### Segmento e
+El bloque de `e` implementa `A'B + A'C'`. Se usaron inversores para `A` y `C`, dos `AND` para los productos y un `OR` de salida para consolidar la función.
+<img src="/media/practicas/practica-1/construccion/build_seg_e_catodo_kmap.webp" alt="Construcción en Proteus para segmento e en cátodo común" />
+
+##### Segmento f
+El segmento `f` se construyó como `AB + AC + BC`. El circuito usa tres ramas `AND` (una por producto) y una etapa `OR` de 3 entradas para obtener la salida final.
+<img src="/media/practicas/practica-1/construccion/build_seg_f_catodo_kmap.webp" alt="Construcción en Proteus para segmento f en cátodo común" />
+
+##### Segmento g
+Para `g` se aplicó `BC + AC'`. Se obtiene `C'` con `NOT`, se forman ambos productos con `AND` y se suman con `OR` en la etapa de salida.
+<img src="/media/practicas/practica-1/construccion/build_seg_g_catodo_kmap.webp" alt="Construcción en Proteus para segmento g en cátodo común" />
+
+##### Segmento dp
+`dp` comparte la misma lógica que `c`: `AB + AC' + A'B'C`. Por eso se reutilizó la misma estructura de compuertas (`NOT`, `AND` de 2/3 entradas y `OR` de 3 entradas).
+<img src="/media/practicas/practica-1/construccion/build_seg_dp_catodo_kmap.webp" alt="Construcción en Proteus para segmento dp en cátodo común" />
+
+#### Ánodo común
+
+##### Inversores NOT
+Este bloque genera `A'`, `B'` y `C'` para la implementación en ánodo. Es la base para armar términos POS y para adaptar la lógica activa en bajo del display trasero.
+<img src="/media/practicas/practica-1/construccion/build_anodo_inversores_not.webp" alt="Inversores NOT usados para la implementación en ánodo común" />
+
+##### Segmentos a y d
+En ánodo, `a` y `d` se implementaron con `POS`: `(A' + B)(A' + C')`. Se construyeron dos sumas con `OR` y luego se multiplicaron con una etapa `AND`, manteniendo la lógica activa en bajo.
+<img src="/media/practicas/practica-1/construccion/build_seg_a_d_anodo_kmap.webp" alt="Construcción en Proteus para segmentos a y d en ánodo común" />
+
+##### Segmento b
+Para `b` se armó la forma `POS` de tres factores: `(A' + B')(A' + C')(B' + C')`. La implementación sigue `OR` por cada factor y una etapa `AND` final que entrega el nivel activo en bajo.
+<img src="/media/practicas/practica-1/construccion/build_seg_b_anodo_kmap.webp" alt="Construcción en Proteus para segmento b en ánodo común" />
+
+##### Segmento c
+El segmento `c` en ánodo se realizó como `(A + B')(A + C)`. Se usaron dos puertas `OR` para los sumandos y una `AND` para combinar factores según la forma POS.
+<img src="/media/practicas/practica-1/construccion/build_seg_c_anodo_kmap.webp" alt="Construcción en Proteus para segmento c en ánodo común" />
+
+##### Segmentos e y dp
+`e` y `dp` comparten la misma función en ánodo: `(A' + B')(A' + C)(A + B + C')`. Se implementaron tres sumas con `OR` y una combinación final con `AND`.
+<img src="/media/practicas/practica-1/construccion/build_seg_e_dp_anodo_kmap.webp" alt="Construcción en Proteus para segmentos e y dp en ánodo común" />
+
+##### Segmento f
+Para `f` en ánodo la forma mínima es `BC`; este bloque se resuelve con una sola compuerta `AND` de 2 entradas, conservando la activación en bajo en la salida del display.
+<img src="/media/practicas/practica-1/construccion/build_seg_f_anodo_kmap.webp" alt="Construcción en Proteus para segmento f en ánodo común" />
+
+##### Segmento g
+El segmento `g` se montó como `(B' + C')(A' + C)`: dos etapas `OR` para formar factores y una etapa `AND` para el producto final, cerrando la implementación completa del DEC en ánodo.
+<img src="/media/practicas/practica-1/construccion/build_seg_g_anodo_kmap.webp" alt="Construcción en Proteus para segmento g en ánodo común" />
+
+### Evidencias de montaje físico
+
+Estas capturas documentan el proceso de armado en protoboard/placa durante la integración del sistema.
+
+#### Montaje 1
+Vista inicial de conexión y distribución de componentes para comenzar el ensamblaje.
+<img src="/media/practicas/practica-1/montaje/evidencia_montaje_01.webp" alt="Evidencia de montaje físico 1" />
+
+#### Montaje 2
+Avance de interconexiones entre bloques lógicos y líneas de alimentación.
+<img src="/media/practicas/practica-1/montaje/evidencia_montaje_02.webp" alt="Evidencia de montaje físico 2" />
+
+#### Montaje 3
+Integración de más etapas del circuito con cableado funcional en progreso.
+<img src="/media/practicas/practica-1/montaje/evidencia_montaje_03.webp" alt="Evidencia de montaje físico 3" />
+
+#### Montaje 4
+Ajustes de conexión y consolidación de la estructura de montaje.
+<img src="/media/practicas/practica-1/montaje/evidencia_montaje_04.webp" alt="Evidencia de montaje físico 4" />
+
+#### Montaje 5
+Estado final del armado físico usado para validación en laboratorio.
+<img src="/media/practicas/practica-1/montaje/evidencia_montaje_05.webp" alt="Evidencia de montaje físico 5" />
+
+#### Montaje 6
+Captura adicional del montaje físico con el circuito integrado en etapa de validación.
+<img src="/media/practicas/practica-1/montaje/evidencia_montaje_06.webp" alt="Evidencia de montaje físico 6" />
 
 ## Presupuesto
 
