@@ -31,6 +31,7 @@ export default defineConfig({
           items: [
             { label: "Vista general", link: "/practicas/" },
             { label: "Práctica 1", link: "/practicas/practica-1/" },
+            { label: "Práctica 2", link: "/practicas/practica-2/" },
           ],
         },
         {

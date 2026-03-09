@@ -10,11 +10,12 @@ En esta sección se documentan las prácticas del curso con un formato homogéne
 ## Navegación
 
 - [Práctica 1](/practicas/practica-1/)
+- [Práctica 2](/practicas/practica-2/)
 
 ## Estado actual
 
-- Práctica activa: [Práctica 1](/practicas/practica-1/)
-- Próximas prácticas: pendientes de asignación.
+- Práctica activa: [Práctica 2](/practicas/practica-2/)
+- Prácticas disponibles: [Práctica 1](/practicas/practica-1/) y [Práctica 2](/practicas/practica-2/).
 
 ## Checklist estándar
 
