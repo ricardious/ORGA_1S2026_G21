@@ -2,4 +2,6 @@
 *.pdsbak
 *.workspace
 *.tmp
+Project Backups/
+*[Autosaved].pdsprj
 
