@@ -5,3 +5,28 @@
 Project Backups/
 *[Autosaved].pdsprj
 
+# LaTeX build artifacts
+*.aux
+*.fdb_latexmk
+*.fls
+*.fmt
+*.fot
+*.lof
+*.log
+*.lot
+*.nav
+*.out
+*.snm
+*.synctex.gz
+*.toc
+*.xdv
+
+# MiKTeX / TeX temporary files
+*.bak
+*.bbl
+*.blg
+*.ilg
+*.ind
+*.idx
+*.run.xml
+

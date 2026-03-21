@@ -147,15 +147,15 @@ Los operandos $A$ y $B$ se ingresan mediante DIP switches de 4 posiciones. Las o
     \caption{Tabla de seleccion general de operaciones.}
     \begin{tabular}{c c c p{8cm}}
         \toprule
-        \textbf{C} & \textbf{B} & \textbf{A} & \textbf{Operacion habilitada} \\
+        \textbf{A} & \textbf{B} & \textbf{C} & \textbf{Operacion habilitada} \\
         \midrule
         0 & 0 & 0 & Suma \\
-        0 & 0 & 1 & Resta \\
+        1 & 0 & 0 & Resta \\
         0 & 1 & 0 & Multiplicacion \\
-        0 & 1 & 1 & Potencia \\
-        1 & 0 & 0 & AND \\
+        1 & 1 & 0 & Potencia \\
+        0 & 0 & 1 & AND \\
         1 & 0 & 1 & OR \\
-        1 & 1 & 0 & NAND \\
+        0 & 1 & 1 & NAND \\
         1 & 1 & 1 & XNOR / ruta logica final \\
         \bottomrule
     \end{tabular}
