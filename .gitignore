@@ -30,3 +30,9 @@ Project Backups/
 *.idx
 *.run.xml
 
+# Arduino build artifacts
+build/
+*.eep
+*.elf
+*.hex
+*.bin
