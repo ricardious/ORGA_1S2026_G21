@@ -31,8 +31,12 @@ Project Backups/
 *.run.xml
 
 # Arduino build artifacts
-build/
 *.eep
 *.elf
-*.hex
 *.bin
+
+# Ignore Arduino build outputs by default, except the firmware hex we ship
+Práctica 3/carrusel_ctrl/build/*
+!Práctica 3/carrusel_ctrl/build/arduino.avr.uno/
+Práctica 3/carrusel_ctrl/build/arduino.avr.uno/*
+!Práctica 3/carrusel_ctrl/build/arduino.avr.uno/carrusel_ctrl.ino.hex
