@@ -79,12 +79,8 @@ void loop() {
       if (!cycleAborted) {
         // pulso de cierre de ciclo
         sendClockCycles(PIN_CLK_DOWN, 1, 5);
-
-        // tiempo de estabilización del puente H
-        digitalWrite(PIN_H1, LOW);
-        delay(1000);
-
         haltSystem();
+        delay(1000);  // estabilización después de frenar
       }
 
       // esperando flanco de bajada de la señal
