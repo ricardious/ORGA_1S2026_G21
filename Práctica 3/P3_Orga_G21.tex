@@ -320,7 +320,7 @@ La elección de dos bits fue suficiente porque el sistema solo necesita distingu
     \centering
     \begin{subfigure}[t]{0.42\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{assets/proteus_display_contador_errores.png}
+        \includegraphics[width=\textwidth]{assets/proteus_modulo_temporizacion_secuencia_general.png}
         \caption{Display del número de errores.}
     \end{subfigure}
     \hfill
@@ -378,6 +378,8 @@ La secuencia principal del bloque es la siguiente:
 
 Esta elección hace que el display muestre claramente el cierre de la segunda fase, ya que el tiempo restante va disminuyendo hasta llegar a cero. En el circuito puede verse una señal de detección del estado 10 y otra lógica auxiliar de carga; esto se utilizó para garantizar que el contador iniciara exactamente en 10 al arrancar la fase roja y no en otro valor residual.
 
+En particular, se utilizó una compuerta NAND de 4 entradas porque era necesario tomar en cuenta el estado completo del contador y no únicamente uno o dos bits aislados. Esa compuerta recibe las cuatro líneas del bloque descendente y las resume en una sola señal de control. Luego, esa salida se combina con la lógica de reloj para generar \texttt{LOAD\_10}, que fuerza el patrón 1010 al inicio de la fase roja. El uso de una NAND resulta conveniente porque entrega una salida negada, útil para este tipo de señales de carga y detección en lógica TTL, y evita construir la misma condición con varias compuertas más pequeñas.
+
 \begin{table}[H]
     \centering
     \caption{Secuencia representativa del contador descendente.}
@@ -404,7 +406,7 @@ Desde el punto de vista lógico, el sistema usa los contadores como memoria temp
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\textwidth]{assets/proteus_modulo_temporizacion_secuencia_general.png}
+    \includegraphics[width=0.55\textwidth]{assets/proteus_contador_ascendente_0_a_15.png}
     \caption{Vista general del módulo de temporización y secuencia.}
 \end{figure}
 
@@ -412,17 +414,19 @@ Desde el punto de vista lógico, el sistema usa los contadores como memoria temp
     \centering
     \begin{subfigure}[t]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{assets/proteus_contador_ascendente_0_a_15.png}
+        \includegraphics[width=\textwidth]{assets/proteus_contador_descendente_10_a_0.png}
         \caption{Contador ascendente de 0 a 15.}
     \end{subfigure}
     \hfill
     \begin{subfigure}[t]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{assets/proteus_contador_descendente_10_a_0.png}
+        \includegraphics[width=\textwidth]{assets/proteus_logica_multiplexacion_y_displays_tiempo.png}
         \caption{Contador descendente de 10 a 0.}
     \end{subfigure}
     \caption{Contadores empleados para las dos fases del carrusel.}
 \end{figure}
+
+\clearpage
 
 \subsection{Multiplexación y displays de tiempo}
 Una vez que ambos contadores existen, todavía hace falta decidir cuál de ellos será visible en los displays. Para eso se usaron multiplexores 74LS157. La lógica de selección entrega a la salida los bits del contador ascendente mientras el carrusel avanza, y conmuta a los bits del contador descendente durante la segunda fase.
@@ -431,9 +435,11 @@ También se agregó una etapa de ajuste BCD con un 74LS283 y un 74LS48. Esta sec
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=\textwidth]{assets/proteus_logica_multiplexacion_y_displays_tiempo.png}
+    \includegraphics[width=\textwidth]{assets/proteus_modulo_control_motor_dc_carrusel.png}
     \caption{Lógica de multiplexación y adaptación a displays de tiempo.}
 \end{figure}
+
+\clearpage
 
 \subsection{Control del motor DC}
 El motor del carrusel se controló mediante un puente H discreto con transistores 2N2222A y diodos 1N4007. Los diodos se colocaron para absorber los transitorios generados por la carga inductiva del motor, mientras que las entradas \texttt{IN1} e \texttt{IN2} determinan el sentido de circulación de corriente.
@@ -442,8 +448,8 @@ La implementación física muestra por qué separar este bloque fue útil: el mo
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.9\textwidth]{assets/proteus_modulo_control_motor_dc_carrusel.png}
-    \caption{Módulo de control del motor DC y señalización visual de giro.}
+    \includegraphics[width=0.36\textwidth]{assets/armado_fisico_prueba_motor_y_cableado.jpeg}
+    \caption{Prueba física del motor y verificación del cableado de accionamiento.}
 \end{figure}
 
 \section{Diagramas del diseño del circuito}
