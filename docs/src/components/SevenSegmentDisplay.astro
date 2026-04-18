@@ -1,0 +1,109 @@
+---
+// SevenSegmentDisplay.astro
+// Vista dual: cátodo común (frontal) y ánodo común (espejo)
+import SevenSegmentGlyph from "./SevenSegmentGlyph.astro";
+
+const wordData = [
+    { char: "S", segs: ["b", "e"], dp: false },
+    { char: "1", segs: ["b", "c"], dp: true },
+    { char: "S", segs: ["b", "e"], dp: false },
+    { char: "T", segs: ["e", "f", "g"], dp: false },
+    { char: "3", segs: ["a", "b", "c", "d", "g"], dp: true },
+    { char: "M", segs: ["a", "b", "d", "f"], dp: false },
+    { char: "4", segs: ["b", "c", "f", "g"], dp: true },
+    { char: "5", segs: ["a", "c", "d", "f", "g"], dp: true },
+];
+
+const displayModes = [
+    {
+        id: "catodo",
+        title: "Cátodo Común (Frontal)",
+        logic: "Lógica activa en 1 (1 = encendido)",
+        mirrored: false,
+    },
+    {
+        id: "anodo",
+        title: "Ánodo Común (Espejo)",
+        logic: "Lógica activa en 0 (0 = encendido)",
+        mirrored: true,
+    },
+];
+---
+
+<div class="ssd-wrapper">
+    {
+        displayModes.map((mode) => (
+            <section class="ssd-mode">
+                <h4 class="ssd-mode-title">{mode.title}</h4>
+                <p class="ssd-mode-subtitle">{mode.logic}</p>
+
+                <div class="ssd-container">
+                    {
+                        wordData.map((data, index) => (
+                            <SevenSegmentGlyph
+                                charLabel={data.char}
+                                activeSegments={data.segs}
+                                dp={data.dp}
+                                mirrored={mode.mirrored}
+                                glowId={`glow-${mode.id}-${index}`}
+                                maxWidth={112}
+                            />
+                        ))
+                    }
+                </div>
+            </section>
+        ))
+    }
+</div>
+
+<style>
+    .ssd-wrapper {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+        padding: 1.5rem 1rem;
+        font-family: monospace;
+        width: 100%;
+    }
+
+    .ssd-mode {
+        border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+        border-radius: 0.75rem;
+        padding: 1rem;
+    }
+
+    .ssd-mode-title {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 700;
+    }
+
+    .ssd-mode-subtitle {
+        margin: 0.15rem 0 0.9rem;
+        opacity: 0.7;
+        font-size: 0.85rem;
+    }
+
+    .ssd-container {
+        display: flex;
+        gap: clamp(0.5rem, 2vw, 1.2rem);
+        align-items: flex-end;
+        width: 100%;
+        justify-content: center;
+    }
+
+    @media (max-width: 768px) {
+        .ssd-wrapper {
+            gap: 1rem;
+            padding: 1rem 0.5rem;
+        }
+
+        .ssd-mode {
+            padding: 0.75rem;
+        }
+
+        .ssd-container {
+            gap: clamp(0.25rem, 1.3vw, 0.8rem);
+        }
+    }
+</style>

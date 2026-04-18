@@ -1,0 +1,164 @@
+---
+import SevenSegmentGlyph from "./SevenSegmentGlyph.astro";
+
+const glyphMap: Record<string, string[]> = {
+  A: ["a", "b", "c", "d", "e", "g"],
+  B: ["c", "d", "e", "f", "g"],
+  C: ["a", "d", "e", "f"],
+  D: ["b", "c", "d", "e", "g"],
+  E: ["a", "d", "e", "f", "g"],
+  F: ["a", "e", "f", "g"],
+  G: ["a", "c", "d", "e", "f"],
+  H: ["c", "e", "f", "g"],
+  I: ["e", "f"],
+  J: ["b", "c", "d"],
+  K: ["a", "d"],
+  L: ["d", "e", "f"],
+  M: ["a", "b", "d", "f"],
+  N: ["c", "e", "g"],
+  Ñ: ["a", "c", "e", "g"],
+  O: ["c", "d", "e", "g"],
+  P: ["a", "b", "e", "f", "g"],
+  Q: ["a", "b", "d", "f", "g"],
+  R: ["e", "g"],
+  S: ["b", "e"],
+  T: ["e", "f", "g"],
+  U: ["b", "c", "d", "e", "f"],
+  V: ["c", "d", "e"],
+  W: ["a", "c", "d", "e"],
+  X: ["b", "c", "e", "f", "g"],
+  Y: ["b", "c", "d", "f", "g"],
+  Z: ["c", "f"],
+  0: ["a", "b", "c", "d", "e", "f", "dp"],
+  1: ["b", "c", "dp"],
+  2: ["a", "b", "d", "e", "g", "dp"],
+  3: ["a", "b", "c", "d", "g", "dp"],
+  4: ["b", "c", "f", "g", "dp"],
+  5: ["a", "c", "d", "f", "g", "dp"],
+  6: ["c", "d", "e", "f", "g", "dp"],
+  7: ["a", "b", "c", "dp"],
+  8: ["a", "b", "c", "d", "e", "f", "g", "dp"],
+  9: ["a", "b", "c", "f", "g", "dp"],
+  "-": ["g"],
+  ".": ["dp"],
+  " ": ["d"],
+};
+
+const entries = [
+  "A",
+  "B",
+  "C",
+  "D",
+  "E",
+  "F",
+  "G",
+  "H",
+  "I",
+  "J",
+  "K",
+  "L",
+  "M",
+  "N",
+  "Ñ",
+  "O",
+  "P",
+  "Q",
+  "R",
+  "S",
+  "T",
+  "U",
+  "V",
+  "W",
+  "X",
+  "Y",
+  "Z",
+  "0",
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  "-",
+  ".",
+  " ",
+];
+
+const formatLabel = (entry: string) => {
+  if (entry === " ") return "ESPACIO";
+  return entry;
+};
+---
+
+<section class="alpha-wrapper">
+  <p class="alpha-description">
+    Referencia visual de caracteres en 7 segmentos para apoyar el diseño lógico
+    de codificación. Se muestra cada símbolo con su aproximación en display.
+  </p>
+
+  <div class="alpha-grid">
+    {
+      entries.map((entry, index) => (
+        <article class="alpha-card">
+          <SevenSegmentGlyph
+            charLabel={formatLabel(entry)}
+            activeSegments={(glyphMap[entry] ?? []).filter((s) => s !== "dp")}
+            dp={(glyphMap[entry] ?? []).includes("dp")}
+            glowId={`alpha-${index}`}
+            maxWidth={86}
+          />
+          <p class="alpha-segments">
+            {entry === " "
+              ? "Segmentos: ninguno"
+              : `Segmentos: ${(glyphMap[entry] ?? [])
+                  .filter((s) => s !== "dp")
+                  .join(", ")}${
+                  (glyphMap[entry] ?? []).includes("dp") ? " + dp" : ""
+                }`}
+          </p>
+        </article>
+      ))
+    }
+  </div>
+</section>
+
+<style>
+  .alpha-wrapper {
+    border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+    border-radius: 0.75rem;
+    padding: 1rem;
+  }
+
+  .alpha-description {
+    margin: 0 0 0.85rem;
+    opacity: 0.8;
+    font-size: 0.92rem;
+  }
+
+  .alpha-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 0.75rem;
+  }
+
+  .alpha-card {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+    border-radius: 0.6rem;
+    padding: 0.65rem 0.4rem;
+    text-align: center;
+  }
+
+  .alpha-segments {
+    margin-top: auto;
+    padding-top: 0.45rem;
+    font-size: 0.72rem;
+    opacity: 0.75;
+    line-height: 1.2;
+  }
+</style>

@@ -1,0 +1,42 @@
+# Proteus temporary/local files
+*.pdsbak
+*.workspace
+*.tmp
+Project Backups/
+*[Autosaved].pdsprj
+
+# LaTeX build artifacts
+*.aux
+*.fdb_latexmk
+*.fls
+*.fmt
+*.fot
+*.lof
+*.log
+*.lot
+*.nav
+*.out
+*.snm
+*.synctex.gz
+*.toc
+*.xdv
+
+# MiKTeX / TeX temporary files
+*.bak
+*.bbl
+*.blg
+*.ilg
+*.ind
+*.idx
+*.run.xml
+
+# Arduino build artifacts
+*.eep
+*.elf
+*.bin
+
+# Ignore Arduino build outputs by default, except the firmware hex we ship
+Práctica 3/carrusel_ctrl/build/*
+!Práctica 3/carrusel_ctrl/build/arduino.avr.uno/
+Práctica 3/carrusel_ctrl/build/arduino.avr.uno/*
+!Práctica 3/carrusel_ctrl/build/arduino.avr.uno/carrusel_ctrl.ino.hex

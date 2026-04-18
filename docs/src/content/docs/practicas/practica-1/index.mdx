@@ -1,0 +1,694 @@
+---
+title: "Práctica 1: Sistema de Visualización de 7 Segmentos"
+description: Diseño e implementación de un sistema de visualización bidireccional (normal y espejo) basado en lógica combinacional, transistores y circuitos integrados TTL.
+---
+
+import SevenSegmentDisplay from '../../../../components/SevenSegmentDisplay.astro';
+import SevenSegmentAlphabet from '../../../../components/SevenSegmentAlphabet.astro';
+
+## Resumen
+
+Práctica asignada: **Visualizador de 7 segmentos** con implementación bidireccional:
+
+- Display frontal (normal) con **cátodo común** y términos mínimos.
+- Display trasero (espejo) con **ánodo común** y términos máximos.
+
+El sistema debe mostrar una palabra personalizada de 8 caracteres (letras y/o números), cumpliendo las restricciones del enunciado.
+
+## Fechas clave
+
+- Asignación del enunciado: **14/02/2026**
+- Fecha de entrega: **28/02/2026**
+- Fecha de calificación: **28/02/2026**
+
+## Objetivo
+
+Desarrollar un sistema físico funcional de visualización en 7 segmentos (normal y espejo), aplicando lógica combinacional simplificada con mapas de Karnaugh, integración híbrida con compuertas transistorizadas y TTL, simulación consolidada en Proteus y validación en laboratorio.
+
+## Requisitos
+
+- Mostrar una palabra de 8 caracteres.
+- Incluir mínimo 2 números.
+- Se permite repetir únicamente 1 carácter (letra o número) dentro de la palabra.
+- Implementar segmentos `a, c, d, f, g` con lógica transistorizada.
+- Implementar segmentos `b, e` y `pt` con compuertas TTL en protoboard.
+- Fabricar PCB etiquetadas para frontal y espejo.
+
+## Entradas/Salidas
+
+- Entradas:
+  - Variables booleanas del sistema combinacional.
+  - Selección de caracteres según el diseño definido por el equipo.
+- Salidas:
+  - Encendido correcto de segmentos para visualización frontal (cátodo común).
+  - Encendido correcto de segmentos para visualización espejo (ánodo común).
+  - Validación funcional en simulación y montaje físico.
+
+## Diseño (lógico/electrónico)
+
+- Simplificar funciones booleanas de cada segmento usando mapas de Karnaugh.
+- Aplicar términos mínimos para lógica positiva (frontal).
+- Aplicar términos máximos para lógica negativa (espejo).
+- Documentar esquemáticos de compuertas, diagrama de interconexión y criterios de diseño.
+
+### Palabra seleccionada
+
+`S1ST3M45`
+
+### Mapeo preliminar de caracteres a segmentos
+
+| Posición | Carácter | Segmentos | Punto Decimal |
+| :---: | :---: | :--- | :---: |
+| 1 | **S** | `b`, `e` | No |
+| 2 | **1** | `b`, `c` | Sí |
+| 3 | **S** | `b`, `e` | No |
+| 4 | **T** | `e`, `f`, `g` | No |
+| 5 | **3** | `a`, `b`, `c`, `d`, `g` | Sí |
+| 6 | **M** | `a`, `b`, `d`, `f` | No |
+| 7 | **4** | `b`, `c`, `f`, `g` | Sí |
+| 8 | **5** | `a`, `c`, `d`, `f`, `g` | Sí |
+
+### Referencia de abecedario en 7 segmentos
+
+Este catálogo resume una aproximación de letras, números y símbolos frecuentes usando un display de 7 segmentos.  
+Se utiliza como apoyo visual en el diseño de la codificación y en la definición de funciones booleanas por segmento.
+
+<SevenSegmentAlphabet />
+
+### Tabla de verdad / codificación
+
+La siguiente tabla define la codificación del sistema para cada combinación de entrada `ABC` (de `000` a `111`), asociada a un carácter de la palabra **S1ST3M45**.  
+Esta codificación corresponde a la visualización frontal de **cátodo común**: en cada salida (`a` a `g` y `dp`), el valor `1` indica segmento encendido y `0` indica segmento apagado. Para la visualización trasera de **ánodo común**, se utiliza la lógica invertida de estas salidas.
+
+| Dec | Entrada (ABC) | Letra | a | b | c | d | e | f | g | dp |
+|---:|:---:|:---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 000 | S | 0 | 1 | 0 | 0 | 1 | 0 | 0 | 0 |
+| 1 | 001 | 1 | 0 | 1 | 1 | 0 | 0 | 0 | 0 | 1 |
+| 2 | 010 | S | 0 | 1 | 0 | 0 | 1 | 0 | 0 | 0 |
+| 3 | 011 | T | 0 | 0 | 0 | 0 | 1 | 1 | 1 | 0 |
+| 4 | 100 | 3 | 1 | 1 | 1 | 1 | 0 | 0 | 1 | 1 |
+| 5 | 101 | M | 1 | 1 | 0 | 1 | 0 | 1 | 0 | 0 |
+| 6 | 110 | 4 | 0 | 1 | 1 | 0 | 0 | 1 | 1 | 1 |
+| 7 | 111 | 5 | 1 | 0 | 1 | 1 | 0 | 1 | 1 | 1 |
+
+### Karnaugh y ecuaciones finales (todos los segmentos)
+
+Convención usada en todos los mapas: columnas `BC = 00, 01, 11, 10`.
+
+#### Segmento a
+
+K-map:
+
+| A\BC | 00 | 01 | 11 | 10 |
+| :--: | :-: | :-: | :-: | :-: |
+| 0 | 0 | 0 | 0 | 0 |
+| 1 | 1 | 1 | 1 | 0 |
+
+Grupos:
+- `(A=1, BC=00 y 01) -> AB'`
+- `(A=1, BC=01 y 11) -> AC`
+
+Ecuación mínima:
+- `a = AB' + AC`
+
+#### Segmento b
+
+K-map:
+
+| A\BC | 00 | 01 | 11 | 10 |
+| :--: | :-: | :-: | :-: | :-: |
+| 0 | 1 | 1 | 0 | 1 |
+| 1 | 1 | 1 | 0 | 1 |
+
+Grupos:
+- `Grupo de 4 en columnas 00 y 01 (ambas filas) -> B'`
+- `Grupo de 4 en columnas 00 y 10 (wrap, ambas filas) -> C'`
+
+Ecuación mínima:
+- `b = B' + C'`
+
+#### Segmento c
+
+K-map:
+
+| A\BC | 00 | 01 | 11 | 10 |
+| :--: | :-: | :-: | :-: | :-: |
+| 0 | 0 | 1 | 0 | 0 |
+| 1 | 1 | 0 | 1 | 1 |
+
+Grupos:
+- `(A=1, columnas 11 y 10) -> AB`
+- `(A=1, columnas 00 y 10 wrap) -> AC'`
+- `1 aislado en (A=0, BC=01) -> A'B'C`
+
+Ecuación mínima:
+- `c = AB + AC' + A'B'C`
+
+#### Segmento d
+
+Este mapa es idéntico al de `a`.
+
+K-map:
+
+| A\BC | 00 | 01 | 11 | 10 |
+| :--: | :-: | :-: | :-: | :-: |
+| 0 | 0 | 0 | 0 | 0 |
+| 1 | 1 | 1 | 1 | 0 |
+
+Grupos:
+- `(00 y 01) -> AB'`
+- `(01 y 11) -> AC`
+
+Ecuación mínima:
+- `d = AB' + AC`
+
+#### Segmento e
+
+K-map:
+
+| A\BC | 00 | 01 | 11 | 10 |
+| :--: | :-: | :-: | :-: | :-: |
+| 0 | 1 | 0 | 1 | 1 |
+| 1 | 0 | 0 | 0 | 0 |
+
+Grupos:
+- `(A=0, columnas 11 y 10) -> A'B`
+- `(A=0, columnas 00 y 10 wrap) -> A'C'`
+
+Ecuación mínima:
+- `e = A'B + A'C'`
+- `e = A'(B + C')`
+
+#### Segmento f
+
+K-map:
+
+| A\BC | 00 | 01 | 11 | 10 |
+| :--: | :-: | :-: | :-: | :-: |
+| 0 | 0 | 0 | 1 | 0 |
+| 1 | 0 | 1 | 1 | 1 |
+
+Grupos:
+- `Columna 11 vertical (ambas filas) -> BC`
+- `(A=1, columnas 11 y 10) -> AB`
+- `(A=1, columnas 01 y 11) -> AC`
+
+Ecuación mínima:
+- `f = AB + AC + BC`
+
+#### Segmento g
+
+K-map:
+
+| A\BC | 00 | 01 | 11 | 10 |
+| :--: | :-: | :-: | :-: | :-: |
+| 0 | 0 | 0 | 1 | 0 |
+| 1 | 1 | 0 | 1 | 1 |
+
+Grupos:
+- `Columna 11 vertical (ambas filas) -> BC`
+- `(A=1, columnas 00 y 10 wrap) -> AC'`
+
+Ecuación mínima:
+- `g = BC + AC'`
+
+#### Punto decimal (dp)
+
+`dp` tiene el mismo patrón que `c`.
+
+K-map:
+
+| A\BC | 00 | 01 | 11 | 10 |
+| :--: | :-: | :-: | :-: | :-: |
+| 0 | 0 | 1 | 0 | 0 |
+| 1 | 1 | 0 | 1 | 1 |
+
+Grupos:
+- `(A=1, 11 y 10) -> AB`
+- `(A=1, 00 y 10 wrap) -> AC'`
+- `(A=0, BC=01 solo) -> A'B'C`
+
+Ecuación mínima:
+- `dp = AB + AC' + A'B'C`
+
+### Hoja de ecuaciones definitiva
+
+Entradas: `A, B, C`
+
+Salidas: `a, b, c, d, e, f, g, pt`
+
+Ecuaciones SOP mínimas:
+
+- `a = AB' + AC`
+- `b = B' + C'`
+- `c = AB + AC' + A'B'C`
+- `d = AB' + AC`
+- `e = A'B + A'C'`
+- `f = AB + AC + BC`
+- `g = BC + AC'`
+- `pt = AB + AC' + A'B'C`
+
+### Tabla de verdad para ánodo común (espejo)
+
+Para la visualización trasera con **ánodo común** y **espejo horizontal**, se aplican dos pasos:
+1. **Intercambio de columnas por espejo:** `b ↔ f` y `c ↔ e`. (`a`, `d`, `g` y `dp` no cambian).
+2. **Lógica activa en bajo:** se invierte cada salida (en ánodo, `0` enciende y `1` apaga).
+
+Intercambio columna por columna:
+- `a` se mantiene igual.
+- `b` toma los valores de `f`.
+- `c` toma los valores de `e`.
+- `d` se mantiene igual.
+- `e` toma los valores de `c`.
+- `f` toma los valores de `b`.
+- `g` se mantiene igual.
+- `dp` se mantiene igual.
+
+| Dec | Entrada (ABC) | Letra | a | b | c | d | e | f | g | dp |
+|---:|:---:|:---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 000 | S | 1 | 1 | 0 | 1 | 1 | 0 | 1 | 1 |
+| 1 | 001 | 1 | 1 | 1 | 1 | 1 | 0 | 0 | 1 | 0 |
+| 2 | 010 | S | 1 | 1 | 0 | 1 | 1 | 0 | 1 | 1 |
+| 3 | 011 | T | 1 | 0 | 0 | 1 | 1 | 1 | 0 | 1 |
+| 4 | 100 | 3 | 0 | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
+| 5 | 101 | M | 0 | 0 | 1 | 0 | 1 | 0 | 1 | 1 |
+| 6 | 110 | 4 | 1 | 0 | 1 | 1 | 0 | 0 | 0 | 0 |
+| 7 | 111 | 5 | 0 | 0 | 1 | 0 | 0 | 1 | 0 | 0 |
+
+> En esta tabla, `0` = segmento **encendido** (activo bajo) y `1` = segmento **apagado**.
+
+### Karnaugh y ecuaciones POS — Ánodo común (todos los segmentos)
+
+Para ánodo común se utilizan **términos máximos** (maxterms). En los K-maps se agrupan los **ceros** (posiciones donde el segmento está encendido en ánodo), que corresponden a las posiciones **1 del cátodo ya reflejado** (`b ↔ f`, `c ↔ e`), para obtener la forma **POS (Producto de Sumas)**.
+
+Convención usada en todos los mapas: columnas `BC = 00, 01, 11, 10`.
+
+#### Segmento a (ánodo)
+
+K-map (ánodo):
+
+| A\BC | 00 | 01 | 11 | 10 |
+| :--: | :-: | :-: | :-: | :-: |
+| 0 | 1 | 1 | 1 | 1 |
+| 1 | 0 | 0 | 0 | 1 |
+
+Grupos de 0s:
+- `(A=1, BC=00 y 01) → factor (A' + B)`
+- `(A=1, BC=01 y 11) → factor (A' + C')`
+
+Ecuación POS:
+- `a = (A' + B)(A' + C')`
+
+#### Segmento b (ánodo)
+
+K-map (ánodo):
+
+| A\BC | 00 | 01 | 11 | 10 |
+| :--: | :-: | :-: | :-: | :-: |
+| 0 | 1 | 1 | 0 | 1 |
+| 1 | 1 | 0 | 0 | 0 |
+
+Grupos de 0s:
+- `Columna 11 (ambas filas, 2 celdas) → factor (B' + C')`
+- `A=1, columnas 01 y 11 → factor (A' + C')`
+- `A=1, columnas 11 y 10 → factor (A' + B')`
+
+Ecuación POS:
+- `b = (A' + B')(A' + C')(B' + C')`
+
+#### Segmento c (ánodo)
+
+K-map (ánodo):
+
+| A\BC | 00 | 01 | 11 | 10 |
+| :--: | :-: | :-: | :-: | :-: |
+| 0 | 0 | 1 | 0 | 0 |
+| 1 | 1 | 1 | 1 | 1 |
+
+Grupos de 0s:
+- `A=0, columnas 10 y 11 → factor (A + B')`
+- `A=0, columnas 00 y 10 (wrap) → factor (A + C)`
+
+Ecuación POS:
+- `c = (A + B')(A + C)`
+
+#### Segmento d (ánodo)
+
+Este mapa es idéntico al de `a` (ánodo).
+
+K-map (ánodo):
+
+| A\BC | 00 | 01 | 11 | 10 |
+| :--: | :-: | :-: | :-: | :-: |
+| 0 | 1 | 1 | 1 | 1 |
+| 1 | 0 | 0 | 0 | 1 |
+
+Grupos de 0s:
+- `(A=1, BC=00 y 01) → factor (A' + B)`
+- `(A=1, BC=01 y 11) → factor (A' + C')`
+
+Ecuación POS:
+- `d = (A' + B)(A' + C')`
+
+#### Segmento e (ánodo)
+
+K-map (ánodo):
+
+| A\BC | 00 | 01 | 11 | 10 |
+| :--: | :-: | :-: | :-: | :-: |
+| 0 | 1 | 0 | 1 | 1 |
+| 1 | 0 | 1 | 0 | 0 |
+
+Grupos de 0s:
+- `A=1, columnas 10 y 11 → factor (A' + B')`
+- `A=1, columnas 00 y 10 → factor (A' + C)`
+- `A=0, columna 01 (aislado) → factor (A + B + C')`
+
+Ecuación POS:
+- `e = (A' + B')(A' + C)(A + B + C')`
+
+#### Segmento f (ánodo)
+
+K-map (ánodo):
+
+| A\BC | 00 | 01 | 11 | 10 |
+| :--: | :-: | :-: | :-: | :-: |
+| 0 | 0 | 0 | 1 | 0 |
+| 1 | 0 | 0 | 1 | 0 |
+
+Grupos de 0s:
+- `Columnas 00 y 01 (ambas filas, 4 celdas) → factor B`
+- `Columnas 00 y 10 (wrap, ambas filas, 4 celdas) → factor C`
+
+Ecuación POS:
+- `f = BC`
+
+#### Segmento g (ánodo)
+
+K-map (ánodo):
+
+| A\BC | 00 | 01 | 11 | 10 |
+| :--: | :-: | :-: | :-: | :-: |
+| 0 | 1 | 1 | 0 | 1 |
+| 1 | 0 | 1 | 0 | 0 |
+
+Grupos de 0s:
+- `Columna 11 vertical (ambas filas) → factor (B' + C')`
+- `(A=1, BC=00 y 10 wrap) → factor (A' + C)`
+
+Ecuación POS:
+- `g = (B' + C')(A' + C)`
+
+#### Punto decimal dp (ánodo)
+
+`dp` tiene el mismo patrón que `e` (ánodo).
+
+K-map (ánodo):
+
+| A\BC | 00 | 01 | 11 | 10 |
+| :--: | :-: | :-: | :-: | :-: |
+| 0 | 1 | 0 | 1 | 1 |
+| 1 | 0 | 1 | 0 | 0 |
+
+Grupos de 0s:
+- `A=1, columnas 10 y 11 → factor (A' + B')`
+- `A=1, columnas 00 y 10 → factor (A' + C)`
+- `A=0, columna 01 (aislado) → factor (A + B + C')`
+
+Ecuación POS:
+- `dp = (A' + B')(A' + C)(A + B + C')`
+
+### Hoja de ecuaciones definitiva — Ánodo común (espejo)
+
+Entradas: `A, B, C`
+
+Salidas: `a, b, c, d, e, f, g, dp`
+
+Ecuaciones POS (Producto de Sumas):
+
+- `a = (A' + B)(A' + C')`
+- `b = (A' + B')(A' + C')(B' + C')`
+- `c = (A + B')(A + C)`
+- `d = (A' + B)(A' + C')`
+- `e = (A' + B')(A' + C)(A + B + C')`
+- `f = BC`
+- `g = (B' + C')(A' + C)`
+- `dp = (A' + B')(A' + C)(A + B + C')`
+
+### Prototipo de Visualización Interactiva (Sistema de 8 caracteres)
+
+Este prototipo digital muestra ambas representaciones del sistema: **cátodo común (frontal)** y **ánodo común (trasero en espejo)**. Permite visualizar la palabra seleccionada (**S1ST3M45**), verificar la distribución de los segmentos (etiquetados de **A** a **G**) y comparar el comportamiento entre ambas configuraciones antes del montaje físico.
+
+<SevenSegmentDisplay />
+
+## Implementación (simulación/montaje/pcb)
+
+- Simulación completa en Proteus en **un solo archivo** `.pdsprj` (sin módulos separados).
+- Montaje en protoboard para las partes TTL.
+- Fabricación de placas PCB para compuertas transistorizadas (frontal y espejo).
+- Integración final del sistema híbrido PCB + protoboard.
+
+### Bloques transistorizados usados (diagramas de referencia)
+
+Los siguientes diagramas se usaron como **bloques base de compuertas transistorizadas** para implementar la lógica de los segmentos del display de **cátodo común** (salidas activas en `1`).
+
+Su propósito fue:
+
+- Documentar la topología de cada compuerta hecha con transistores (como interruptores).
+- Reutilizar bloques (NOT, AND, OR) al construir las ecuaciones de cada segmento.
+- Facilitar la validación visual antes de llevar el diseño a simulación/PCB.
+
+#### 1) Inversor (`NOT`)
+
+Se usa para generar variables complementadas, por ejemplo `A'`, `B'` o `C'`, que aparecen en varias ecuaciones SOP.
+
+Ejemplos de uso:
+
+- `a = AB' + AC` requiere `B'`
+- `g = BC + AC'` requiere `C'`
+- `e = A'B + A'C'` requiere `A'` y `C'`
+
+<img src="/svg/practicas/practica-1/inversor_notA_schemdraw.svg" alt="Compuerta inversora transistorizada (NOT)" />
+
+#### 2) AND de 2 entradas
+
+Este bloque genera **términos producto de 2 variables**. Se utilizó para formar términos intermedios que luego se suman con OR.
+
+Ejemplos de uso:
+
+- `AB'`, `AC`, `BC`, `AC'`, `A'B`
+
+<img src="/svg/practicas/practica-1/and_transistor_switches_clean.svg" alt="Compuerta AND transistorizada de 2 entradas" />
+
+#### 3) OR de 2 entradas
+
+Este bloque combina dos términos producto para obtener ecuaciones SOP de dos términos.
+
+Ejemplos directos en segmentos:
+
+- `a = AB' + AC`
+- `d = AB' + AC`
+- `g = BC + AC'`
+- `b = B' + C'`
+
+<img src="/svg/practicas/practica-1/or_transistor_switches_clean_v2.svg" alt="Compuerta OR transistorizada de 2 entradas" />
+
+#### 4) NAND de 2 entradas
+
+Este bloque implementa la compuerta `NAND`, útil como bloque universal y para realizar inversión lógica combinada sobre términos producto.
+
+Ejemplos de uso:
+
+- `(AB)'`
+- Implementaciones equivalentes de `NOT`, `AND` y `OR` usando solo `NAND`
+
+<img src="/svg/practicas/practica-1/nand_transistor_style_clean_v3.svg" alt="Compuerta NAND transistorizada de 2 entradas" />
+
+#### 5) AND de 3 entradas
+
+Se utilizó cuando un término mínimo no puede simplificarse más y requiere tres variables en producto.
+
+Ejemplo principal:
+
+- `A'B'C` en las ecuaciones de `c` y `pt`
+
+<img src="/svg/practicas/practica-1/and3_transistor_switches_clean.svg" alt="Compuerta AND transistorizada de 3 entradas" />
+
+#### 6) OR de 3 entradas
+
+Se utilizó para sumar tres términos cuando la ecuación final del segmento tiene tres productos.
+
+Ejemplos en el diseño:
+
+- `c = AB + AC' + A'B'C`
+- `f = AB + AC + BC`
+- `pt = AB + AC' + A'B'C`
+
+<img src="/svg/practicas/practica-1/or3_transistor_switches_clean_v5.svg" alt="Compuerta OR transistorizada de 3 entradas" />
+
+#### Cómo se integraron en el diseño de segmentos
+
+El flujo de implementación fue el siguiente:
+
+1. Se obtuvo la ecuación mínima por segmento con mapas de Karnaugh.
+2. Se generaron primero las señales invertidas necesarias (`A'`, `B'`, `C'`) con el bloque `NOT`.
+3. Se construyeron los términos producto con bloques `AND` de 2 o 3 entradas.
+4. Se combinaron los términos con bloques `OR` de 2 o 3 entradas para producir la salida final del segmento.
+5. Cada salida resultante se conectó al segmento correspondiente del display de cátodo común.
+
+Estos diagramas funcionan como **documentación modular del diseño**, y además sirven como referencia para pasar de la ecuación booleana al esquema eléctrico transistorizado.
+
+## Pruebas
+
+- Verificación de encendido por segmento en ambos displays.
+- Comparación de salida esperada vs salida observada.
+- Pruebas de casos representativos de la palabra elegida.
+- Registro de fallos y correcciones aplicadas.
+
+### Evidencia animada de combinaciones (cátodo y ánodo)
+
+Secuencia de pruebas en Proteus para combinaciones de entrada, mostrando el comportamiento por segmento en ambas configuraciones.
+
+<img src="/svg/practicas/practica-1/segmentos_catodo_anodo_combinaciones.webp" alt="Pruebas animadas en Proteus por combinaciones de entrada para cátodo y ánodo" />
+
+## Evidencias
+
+- Capturas de simulación en Proteus.
+- Fotografías del montaje físico.
+- Evidencia de PCB fabricadas y etiquetadas.
+- Tabla o registro de pruebas funcionales.
+
+### Evidencias Proteus - Construcción del DEC
+
+#### Cátodo común
+
+##### Segmentos a y d
+Para `a` y `d` se usó la misma ecuación SOP: `AB' + AC`. El armado se hizo en tres etapas: `NOT` para obtener `B'`, dos bloques `AND` para formar `AB'` y `AC`, y un `OR` final para unir ambos términos.
+<img src="/media/practicas/practica-1/construccion/build_seg_a_d_catodo_kmap.webp" alt="Construcción en Proteus para segmentos a y d en cátodo común" />
+
+##### Segmento b
+El segmento `b` responde a `B' + C'`. Se implementó con dos inversores `NOT` (para `B` y `C`) y un `OR` de 2 entradas para generar la salida activa en alto del cátodo común.
+<img src="/media/practicas/practica-1/construccion/build_seg_b_catodo_kmap.webp" alt="Construcción en Proteus para segmento b en cátodo común" />
+
+##### Segmento c
+Para `c` se montó `AB + AC' + A'B'C`. Se generaron complementos con `NOT`, luego dos `AND` de 2 entradas (`AB`, `AC'`) y un `AND` de 3 entradas (`A'B'C`); finalmente se combinó todo con `OR` de 3 entradas.
+<img src="/media/practicas/practica-1/construccion/build_seg_c_catodo_kmap.webp" alt="Construcción en Proteus para segmento c en cátodo común" />
+
+##### Segmento e
+El bloque de `e` implementa `A'B + A'C'`. Se usaron inversores para `A` y `C`, dos `AND` para los productos y un `OR` de salida para consolidar la función.
+<img src="/media/practicas/practica-1/construccion/build_seg_e_catodo_kmap.webp" alt="Construcción en Proteus para segmento e en cátodo común" />
+
+##### Segmento f
+El segmento `f` se construyó como `AB + AC + BC`. El circuito usa tres ramas `AND` (una por producto) y una etapa `OR` de 3 entradas para obtener la salida final.
+<img src="/media/practicas/practica-1/construccion/build_seg_f_catodo_kmap.webp" alt="Construcción en Proteus para segmento f en cátodo común" />
+
+##### Segmento g
+Para `g` se aplicó `BC + AC'`. Se obtiene `C'` con `NOT`, se forman ambos productos con `AND` y se suman con `OR` en la etapa de salida.
+<img src="/media/practicas/practica-1/construccion/build_seg_g_catodo_kmap.webp" alt="Construcción en Proteus para segmento g en cátodo común" />
+
+##### Segmento dp
+`dp` comparte la misma lógica que `c`: `AB + AC' + A'B'C`. Por eso se reutilizó la misma estructura de compuertas (`NOT`, `AND` de 2/3 entradas y `OR` de 3 entradas).
+<img src="/media/practicas/practica-1/construccion/build_seg_dp_catodo_kmap.webp" alt="Construcción en Proteus para segmento dp en cátodo común" />
+
+#### Ánodo común
+
+##### Inversores NOT
+Este bloque genera `A'`, `B'` y `C'` para la implementación en ánodo. Es la base para armar términos POS y para adaptar la lógica activa en bajo del display trasero.
+<img src="/media/practicas/practica-1/construccion/build_anodo_inversores_not.webp" alt="Inversores NOT usados para la implementación en ánodo común" />
+
+##### Segmentos a y d
+En ánodo, `a` y `d` se implementaron con `POS`: `(A' + B)(A' + C')`. Se construyeron dos sumas con `OR` y luego se multiplicaron con una etapa `AND`, manteniendo la lógica activa en bajo.
+<img src="/media/practicas/practica-1/construccion/build_seg_a_d_anodo_kmap.webp" alt="Construcción en Proteus para segmentos a y d en ánodo común" />
+
+##### Segmento b
+Para `b` se armó la forma `POS` de tres factores: `(A' + B')(A' + C')(B' + C')`. La implementación sigue `OR` por cada factor y una etapa `AND` final que entrega el nivel activo en bajo.
+<img src="/media/practicas/practica-1/construccion/build_seg_b_anodo_kmap.webp" alt="Construcción en Proteus para segmento b en ánodo común" />
+
+##### Segmento c
+El segmento `c` en ánodo se realizó como `(A + B')(A + C)`. Se usaron dos puertas `OR` para los sumandos y una `AND` para combinar factores según la forma POS.
+<img src="/media/practicas/practica-1/construccion/build_seg_c_anodo_kmap.webp" alt="Construcción en Proteus para segmento c en ánodo común" />
+
+##### Segmentos e y dp
+`e` y `dp` comparten la misma función en ánodo: `(A' + B')(A' + C)(A + B + C')`. Se implementaron tres sumas con `OR` y una combinación final con `AND`.
+<img src="/media/practicas/practica-1/construccion/build_seg_e_dp_anodo_kmap.webp" alt="Construcción en Proteus para segmentos e y dp en ánodo común" />
+
+##### Segmento f
+Para `f` en ánodo la forma mínima es `BC`; este bloque se resuelve con una sola compuerta `AND` de 2 entradas, conservando la activación en bajo en la salida del display.
+<img src="/media/practicas/practica-1/construccion/build_seg_f_anodo_kmap.webp" alt="Construcción en Proteus para segmento f en ánodo común" />
+
+##### Segmento g
+El segmento `g` se montó como `(B' + C')(A' + C)`: dos etapas `OR` para formar factores y una etapa `AND` para el producto final, cerrando la implementación completa del DEC en ánodo.
+<img src="/media/practicas/practica-1/construccion/build_seg_g_anodo_kmap.webp" alt="Construcción en Proteus para segmento g en ánodo común" />
+
+### Evidencias de montaje físico
+
+Estas capturas documentan el proceso de armado en protoboard/placa durante la integración del sistema.
+
+#### Montaje 1
+Vista inicial de conexión y distribución de componentes para comenzar el ensamblaje.
+<img src="/media/practicas/practica-1/montaje/evidencia_montaje_01.webp" alt="Evidencia de montaje físico 1" />
+
+#### Montaje 2
+Avance de interconexiones entre bloques lógicos y líneas de alimentación.
+<img src="/media/practicas/practica-1/montaje/evidencia_montaje_02.webp" alt="Evidencia de montaje físico 2" />
+
+#### Montaje 3
+Integración de más etapas del circuito con cableado funcional en progreso.
+<img src="/media/practicas/practica-1/montaje/evidencia_montaje_03.webp" alt="Evidencia de montaje físico 3" />
+
+#### Montaje 4
+Ajustes de conexión y consolidación de la estructura de montaje.
+<img src="/media/practicas/practica-1/montaje/evidencia_montaje_04.webp" alt="Evidencia de montaje físico 4" />
+
+#### Montaje 5
+Estado final del armado físico usado para validación en laboratorio.
+<img src="/media/practicas/practica-1/montaje/evidencia_montaje_05.webp" alt="Evidencia de montaje físico 5" />
+
+#### Montaje 6
+Captura adicional del montaje físico con el circuito integrado en etapa de validación.
+<img src="/media/practicas/practica-1/montaje/evidencia_montaje_06.webp" alt="Evidencia de montaje físico 6" />
+
+## Componentes permitidos
+
+| Nombre del componente | Código / Especificación |
+|---|---|
+| Compuerta AND | `74LS08` |
+| Compuerta OR | `74LS32` |
+| Compuerta NOT | `74LS04` |
+| Compuerta XOR | `74LS86` |
+| Transistores NPN/PNP | `2N2222A` |
+| Resistencias | Diversos valores sin diseño |
+| DIP Switch | Configurador de entrada manual |
+| LED (diodo emisor de luz) | Indicador visual para segmentos |
+
+## Presupuesto
+
+| Cantidad | Descripción del componente | Precio unitario (Q) | Subtotal (Q) |
+|---:|---|---:|---:|
+| 1 | Display 7 segmentos cátodo común | 5.00 | 5.00 |
+| 1 | Display 7 segmentos ánodo común | 5.00 | 5.00 |
+| 50 | Transistores NPN 2N2222A | 2.00 | 100.00 |
+| 10 | Circuitos integrados TTL (`74LS08`, `74LS32`, `74LS04`) | 6.00 | 60.00 |
+| 200 | Resistencias (varios valores: `220Ω`, `1kΩ`) | 0.50 | 100.00 |
+| 2 | DIP Switch | 8.00 | 16.00 |
+| 2 | Placas de cobre vírgenes (para PCB) | 12.00 | 24.00 |
+| 2 | Impresiones para la placa | 8.00 | 16.00 |
+| 1 | Kit de cloruro férrico (para grabado de PCB) | 8.00 | 8.00 |
+| 7 | Protoboard | 45.00 | 315.00 |
+| 1 | Rollo pequeño de estaño y pasta para soldar | 20.00 | 20.00 |
+| 25 | Cable jumper / alambre para conexiones | 1.00 | 25.00 |
+
+**Total estimado:** `Q 694.00`
+
+## Conclusiones
+
+La práctica cumplió el objetivo de diseñar e implementar un visualizador bidireccional de 7 segmentos, validando tanto la versión frontal en cátodo común como la versión trasera en ánodo común con comportamiento espejo.
+
+El proceso de simplificación con mapas de Karnaugh permitió obtener ecuaciones mínimas y traducirlas a bloques físicos reutilizables (`NOT`, `AND`, `OR`, `NAND`), lo que facilitó la construcción modular del DEC y la trazabilidad entre ecuación booleana, simulación y montaje.
+
+Se confirmó en Proteus y en el armado físico que la lógica de cátodo común opera con salidas activas en alto, mientras que la de ánodo común requiere inversión y adaptación en forma POS (activa en bajo), diferencia clave para evitar errores de interpretación durante la implementación.
+
+La integración híbrida de compuertas transistorizadas, TTL en protoboard y PCB evidenció desafíos de interconexión y orden de cableado; documentar el circuito por bloques y por evidencias de montaje fue determinante para depuración y validación.
+
+Como mejora para iteraciones futuras, se recomienda estandarizar desde el inicio el etiquetado de señales, preparar una matriz de pruebas por segmento y automatizar la optimización de recursos gráficos/documentales para mantener consistencia técnica y claridad de entrega.
+

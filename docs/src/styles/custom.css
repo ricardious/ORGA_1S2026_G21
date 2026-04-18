@@ -1,0 +1,7 @@
+/* ──────────────────────────────────────────────
+   Dark-mode: invert SVG diagrams so black-on-white
+   schematics become white-on-dark automatically.
+   ────────────────────────────────────────────── */
+:root[data-theme="dark"] img[src$=".svg"] {
+  filter: invert(1) hue-rotate(180deg);
+}

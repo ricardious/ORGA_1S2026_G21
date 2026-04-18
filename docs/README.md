@@ -1,49 +1,36 @@
-# Starlight Starter Kit: Basics
+# Organizacion Computacional - Documentacion, Practicas y Proyectos
 
-[![Built with Starlight](https://astro.badg.es/v2/built-with-starlight/tiny.svg)](https://starlight.astro.build)
+Repositorio oficial del grupo para el curso de **Organizacion Computacional**.
 
-```
-pnpm create astro@latest -- --template starlight
-```
+En este espacio se concentra el trabajo del semestre: contenido teorico, guias, material de apoyo, practicas y proyectos.
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+## Objetivo
 
-## 🚀 Project Structure
+Mantener en un solo lugar toda la informacion y las entregas del curso para facilitar:
 
-Inside of your Astro + Starlight project, you'll see the following folders and files:
+- El estudio y repaso de temas clave.
+- El seguimiento de practicas y proyectos.
+- La organizacion del trabajo en equipo.
 
-```
-.
-├── public/
-├── src/
-│   ├── assets/
-│   ├── content/
-│   │   └── docs/
-│   └── content.config.ts
-├── astro.config.mjs
-├── package.json
-└── tsconfig.json
-```
+## Contenido del Repositorio
 
-Starlight looks for `.md` or `.mdx` files in the `src/content/docs/` directory. Each file is exposed as a route based on its file name.
+Aqui podras encontrar:
 
-Images can be added to `src/assets/` and embedded in Markdown with a relative link.
+- Documentacion tecnica del curso.
+- Apuntes y guias de apoyo.
+- Entregas de **practicas**.
+- Entregas de **proyectos**.
+- Archivos complementarios para cada fase del curso.
 
-Static assets, like favicons, can be placed in the `public/` directory.
+## Integrantes
 
-## 🧞 Commands
+| Carnet | Integrante |
+| --- | --- |
+| 202406918 | Claudia Maribel Tigüilá Tecum |
+| 202403929 | Emiliana Elizabeth Pú Lara |
+| 202300476 | Alex Ricardo Castañeda Rodríguez |
+| 201904522 | Byron Manuel Hernández López |
 
-All commands are run from the root of the project, from a terminal:
+## Nota
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `pnpm install`             | Installs dependencies                            |
-| `pnpm dev`             | Starts local dev server at `localhost:4321`      |
-| `pnpm build`           | Build your production site to `./dist/`          |
-| `pnpm preview`         | Preview your build locally, before deploying     |
-| `pnpm astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `pnpm astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Check out [Starlight’s docs](https://starlight.astro.build/), read [the Astro documentation](https://docs.astro.build), or jump into the [Astro Discord server](https://astro.build/chat).
+Este repositorio se actualiza de forma continua durante el semestre, conforme se avanza con las practicas y proyectos del curso.

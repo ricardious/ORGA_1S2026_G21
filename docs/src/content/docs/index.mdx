@@ -1,40 +1,60 @@
 ---
-title: Welcome to Starlight
-description: Get started building your docs site with Starlight.
-# template: splash # Remove or comment out this line to display the site sidebar on this page.
+title: Bitácora de ORGA (1S2026)
+description: Documentación, prácticas, proyectos, simulaciones, PCB y evidencias del curso.
 hero:
-  tagline: Congrats on setting up a new Starlight project!
+  tagline: Documentación, prácticas, proyectos, simulaciones, PCB y evidencias.
   image:
     file: ../../assets/logo.webp
   actions:
-    - text: Example Guide
-      link: /guides/example/
+    - text: Prácticas
+      link: /practicas/
       icon: right-arrow
-    - text: Read the Starlight docs
-      link: https://starlight.astro.build
-      icon: external
-      variant: minimal
+    - text: Proyectos
+      link: /proyectos/
+      icon: right-arrow
+    - text: Plantillas
+      link: /plantillas/
+      icon: right-arrow
+    - text: Entregables
+      link: /entregables/
+      icon: right-arrow
 ---
 
 import { Card, CardGrid } from '@astrojs/starlight/components';
 
-## Next steps
+## Cómo leer este sitio
+
+- Este sitio presenta entregables finales del curso, organizados por prácticas y proyectos.
+- Cada sección muestra documentación, evidencias y archivos fuente asociados a cada entrega.
+- Los módulos agrupan resultados de simulación, diseño PCB, montaje y validación.
+- La navegación está pensada para revisión técnica rápida por tema o por tipo de evidencia.
+- Para visualizar el sitio localmente: `pnpm dev`.
+
+## Módulos del curso
 
 <CardGrid stagger>
-	<Card title="Update content" icon="pencil">
-		Edit `src/content/docs/index.mdx` to see this page change.
+	<Card title="Prácticas" icon="pencil">
+		Guías, desarrollo y resultados de cada práctica del curso. [Ir a prácticas](/practicas/).
 	</Card>
-	<Card title="Change page layout" icon="document">
-		Delete `template: splash` in `src/content/docs/index.mdx` to display a
-		sidebar on this page.
+	<Card title="Proyectos" icon="setting">
+		Planificación, implementación e integración de los proyectos principales. [Ir a proyectos](/proyectos/).
 	</Card>
-	<Card title="Add new content" icon="add-document">
-		Add Markdown or MDX files to `src/content/docs` to create new pages.
+	<Card title="Simulaciones (Proteus)" icon="laptop">
+		Escenarios de simulación, pruebas funcionales y resultados comparativos. [Ir a simulaciones](/simulaciones/).
 	</Card>
-	<Card title="Configure your site" icon="setting">
-		Edit your `sidebar` and other config in `astro.config.mjs`.
+	<Card title="PCB y Esquemáticos" icon="document">
+		Diagramas electrónicos, ruteo y versiones de diseño para fabricación. [Ir a PCB](/pcb/).
 	</Card>
-	<Card title="Read the docs" icon="open-book">
-		Learn more in [the Starlight Docs](https://starlight.astro.build/).
+	<Card title="Montaje y Evidencias" icon="comment-alt">
+		Registro de armado, validaciones físicas y evidencia fotográfica/video. [Ir a evidencias](/evidencias/).
+	</Card>
+	<Card title="Presupuestos" icon="list-format">
+		Costos de componentes, compras y justificación de decisiones de gasto. [Ir a presupuestos](/presupuestos/).
+	</Card>
+	<Card title="Plantillas y Checklists" icon="approve-check-circle">
+		Formatos reutilizables para documentación y control de calidad. [Ir a plantillas](/plantillas/).
+	</Card>
+	<Card title="Glosario y Apuntes" icon="open-book">
+		Conceptos clave, definiciones y notas técnicas de apoyo. [Ir a apuntes](/apuntes/).
 	</Card>
 </CardGrid>
