@@ -32,36 +32,17 @@ export default defineConfig({
             { label: "Vista general", link: "/practicas/" },
             { label: "Práctica 1", link: "/practicas/practica-1/" },
             { label: "Práctica 2", link: "/practicas/practica-2/" },
+            { label: "Práctica 3", link: "/practicas/practica-3/" },
           ],
         },
         {
           label: "Proyectos",
           autogenerate: { directory: "proyectos" },
         },
-        {
-          label: "Simulaciones",
-          autogenerate: { directory: "simulaciones" },
-        },
-        {
-          label: "PCB y esquemáticos",
-          autogenerate: { directory: "pcb" },
-        },
-        {
-          label: "Evidencias",
-          autogenerate: { directory: "evidencias" },
-        },
-        {
-          label: "Presupuestos",
-          autogenerate: { directory: "presupuestos" },
-        },
-        {
-          label: "Plantillas",
-          autogenerate: { directory: "plantillas" },
-        },
-        {
-          label: "Apuntes",
-          autogenerate: { directory: "apuntes" },
-        },
+        // {
+        //   label: "Apuntes",
+        //   autogenerate: { directory: "apuntes" },
+        // },
       ],
       plugins: [ion()],
       customCss: ["./src/styles/custom.css"],

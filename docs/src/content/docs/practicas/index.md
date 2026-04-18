@@ -11,11 +11,12 @@ En esta sección se documentan las prácticas del curso con un formato homogéne
 
 - [Práctica 1](/practicas/practica-1/)
 - [Práctica 2](/practicas/practica-2/)
+- [Práctica 3](/practicas/practica-3/)
 
 ## Estado actual
 
-- Práctica activa: [Práctica 2](/practicas/practica-2/)
-- Prácticas disponibles: [Práctica 1](/practicas/practica-1/) y [Práctica 2](/practicas/practica-2/).
+- Práctica activa: [Práctica 3](/practicas/practica-3/)
+- Prácticas disponibles: [Práctica 1](/practicas/practica-1/), [Práctica 2](/practicas/practica-2/) y [Práctica 3](/practicas/practica-3/).
 
 ## Checklist estándar
 
