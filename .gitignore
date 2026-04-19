@@ -1,4 +1,6 @@
 # Proteus temporary/local files
+.codex
+**/.codex
 *.pdsbak
 *.workspace
 *.tmp
