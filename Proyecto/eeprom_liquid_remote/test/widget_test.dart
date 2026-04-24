@@ -13,7 +13,7 @@ void main() {
   testWidgets('renders smart home control panel', (WidgetTester tester) async {
     await tester.pumpWidget(const SmartHomeApp());
 
-    expect(find.text('Control Center'), findsOneWidget);
+    expect(find.text('EEPROM Liquid Remote'), findsOneWidget);
     expect(find.text('Modo Actual'), findsOneWidget);
     expect(find.text('Sistema Listo'), findsOneWidget);
     expect(find.text('Comandos Principales'), findsNothing);

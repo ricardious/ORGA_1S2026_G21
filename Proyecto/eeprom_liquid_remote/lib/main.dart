@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
+const String kAppName = 'EEPROM Liquid Remote';
+
 void main() {
   runApp(const SmartHomeApp());
 }
@@ -11,7 +13,7 @@ class SmartHomeApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Smart Home Control',
+      title: kAppName,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
@@ -74,95 +76,113 @@ class _ControlPanelState extends State<ControlPanel> {
     final isTablet = MediaQuery.of(context).size.width >= 900;
 
     return Scaffold(
-      body: Stack(
-        children: [
-          // Background with blurry colored orbs
-          const _AnimatedBackground(),
-
-          SafeArea(
-            child: isTablet ? _buildTabletLayout() : _buildPhoneLayout(),
-          ),
-        ],
+      body: SafeArea(
+        child: isTablet ? _buildTabletLayout() : _buildPhoneLayout(),
       ),
     );
   }
 
   Widget _buildPhoneLayout() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildHeader(),
-          const SizedBox(height: 32),
-          SizedBox(height: 220, child: _buildStatusPanel()),
-          const SizedBox(height: 32),
-          Expanded(child: _buildCommandsGrid(2)),
-          const SizedBox(height: 24),
-          _buildFeedbackPanel(),
-        ],
+    return _buildBackgroundSurface(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildHeader(compact: true),
+            const SizedBox(height: 8),
+            Expanded(
+              flex: 16,
+              child: _buildStatusPanel(compact: true),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              flex: 36,
+              child: _buildCommandsGrid(2, compact: true),
+            ),
+            const SizedBox(height: 8),
+            _buildFeedbackPanel(compact: true),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildTabletLayout() {
-    return Padding(
-      padding: const EdgeInsets.all(32.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Left Column (30%)
-          Expanded(
-            flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildHeader(),
-                const SizedBox(height: 48),
-                Expanded(child: _buildStatusPanel()),
-                const SizedBox(height: 24),
-                _buildFeedbackPanel(),
-              ],
+    return _buildBackgroundSurface(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Left Column (30%)
+            Expanded(
+              flex: 3,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildHeader(),
+                  const SizedBox(height: 48),
+                  Expanded(child: _buildStatusPanel()),
+                  const SizedBox(height: 24),
+                  _buildFeedbackPanel(),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 48),
-          // Right Column (70%)
-          Expanded(
-            flex: 7,
-            child: Column(
-              children: [
-                const SizedBox(height: 20),
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Comandos Principales',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+            const SizedBox(width: 48),
+            // Right Column (70%)
+            Expanded(
+              flex: 7,
+              child: Column(
+                children: [
+                  const SizedBox(height: 20),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Comandos Principales',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 32),
-                Expanded(child: _buildCommandsGrid(3)),
-              ],
+                  const SizedBox(height: 32),
+                  Expanded(child: _buildCommandsGrid(3)),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildBackgroundSurface({required Widget child}) {
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Image.asset(
+            'assets/bg.png',
+            fit: BoxFit.cover,
+            alignment: Alignment.center,
+          ),
+        ),
+        child,
+      ],
+    );
+  }
+
+  Widget _buildHeader({bool compact = false}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Expanded(
+        Expanded(
           child: Text(
-            'Control Center',
-            overflow: TextOverflow.ellipsis,
+            kAppName,
+            maxLines: 2,
             style: TextStyle(
-              fontSize: 28,
+              fontSize: compact ? 19 : 24,
               fontWeight: FontWeight.w700,
               color: Colors.white,
               letterSpacing: -0.5,
@@ -192,7 +212,7 @@ class _ControlPanelState extends State<ControlPanel> {
             ),
             shape: const LiquidOval(),
             child: Container(
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(compact ? 9 : 12),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
@@ -209,7 +229,7 @@ class _ControlPanelState extends State<ControlPanel> {
                 color: isBluetoothConnected
                     ? const Color(0xFF0055FF)
                     : const Color(0xFFB0B3C6),
-                size: 24,
+                size: compact ? 18 : 24,
               ),
             ),
           ),
@@ -218,7 +238,7 @@ class _ControlPanelState extends State<ControlPanel> {
     );
   }
 
-  Widget _buildStatusPanel() {
+  Widget _buildStatusPanel({bool compact = false}) {
     return LiquidGlassLayer(
       fake: true,
       settings: const LiquidGlassSettings(
@@ -232,7 +252,7 @@ class _ControlPanelState extends State<ControlPanel> {
         child: Container(
           width: double.infinity,
           height: double.infinity,
-          padding: const EdgeInsets.all(32),
+          padding: EdgeInsets.all(compact ? 14 : 32),
           decoration: BoxDecoration(
             border: Border.all(
               color: Colors.white.withValues(alpha: 0.1),
@@ -240,78 +260,93 @@ class _ControlPanelState extends State<ControlPanel> {
             ),
             borderRadius: BorderRadius.circular(32), // Visual fallback
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                Icons.home_rounded,
-                size: 48,
-                color: Colors.white.withValues(alpha: 0.9),
-              ),
-              const Spacer(),
-              const Text(
-                'Modo Actual',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFFB0B3C6),
-                  letterSpacing: 1.0,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                currentMode,
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final panelHeight = constraints.maxHeight;
+              final labelSize = compact ? (panelHeight * 0.11).clamp(13.0, 16.0) : 14.0;
+              final modeSize = compact ? (panelHeight * 0.24).clamp(20.0, 28.0) : 26.0;
+              final statusSize = compact ? (panelHeight * 0.12).clamp(12.0, 15.0) : 14.0;
+              final topGap = compact ? (panelHeight * 0.06).clamp(4.0, 8.0) : 8.0;
+              final bottomGap = compact ? (panelHeight * 0.08).clamp(6.0, 12.0) : 12.0;
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: isBluetoothConnected
-                          ? const Color(0xFF00FF66)
-                          : const Color(0xFFFF3366),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
+                  const Spacer(),
+                  Text(
+                    'Modo Actual',
+                    style: TextStyle(
+                      fontSize: labelSize,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFFB0B3C6),
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  SizedBox(height: topGap),
+                  Text(
+                    currentMode,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: modeSize,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                  SizedBox(height: bottomGap),
+                  Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
                           color: isBluetoothConnected
-                              ? const Color(0xFF00FF66).withValues(alpha: 0.5)
-                              : const Color(0xFFFF3366).withValues(alpha: 0.5),
-                          blurRadius: 8,
+                              ? const Color(0xFF00FF66)
+                              : const Color(0xFFFF3366),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: isBluetoothConnected
+                                  ? const Color(0xFF00FF66).withValues(alpha: 0.5)
+                                  : const Color(0xFFFF3366).withValues(alpha: 0.5),
+                              blurRadius: 8,
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      isBluetoothConnected
-                          ? 'Sistema Listo'
-                          : 'Sistema No Disponible',
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFFB0B3C6),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          isBluetoothConnected
+                              ? 'Sistema Listo'
+                              : 'Sistema No Disponible',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: statusSize,
+                            fontWeight: FontWeight.w500,
+                            color: const Color(0xFFB0B3C6),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
+                  const Spacer(),
                 ],
-              ),
-            ],
+              );
+            },
           ),
         ),
       ),
     );
   }
 
-  Widget _buildCommandsGrid(int crossAxisCount) {
+  Widget _buildCommandsGrid(
+    int crossAxisCount, {
+    bool shrinkWrap = false,
+    bool compact = false,
+  }) {
+    final isPhone = crossAxisCount == 2;
+
     // Map of commands to icons and action
     final commands = [
       {
@@ -356,12 +391,13 @@ class _ControlPanelState extends State<ControlPanel> {
         lightIntensity: 1.0,
       ),
       child: GridView.builder(
+        shrinkWrap: shrinkWrap,
         physics: const NeverScrollableScrollPhysics(),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: crossAxisCount,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          childAspectRatio: 1.1,
+          crossAxisSpacing: compact ? 8 : (isPhone ? 12 : 16),
+          mainAxisSpacing: compact ? 8 : (isPhone ? 12 : 16),
+          childAspectRatio: compact ? 1.22 : (isPhone ? 0.95 : 1.1),
         ),
         itemCount: commands.length,
         itemBuilder: (context, index) {
@@ -387,6 +423,10 @@ class _ControlPanelState extends State<ControlPanel> {
                   glowColor: Colors.white.withValues(alpha: 0.15),
                   glowRadius: 1.5,
                   child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: compact ? 8 : (isPhone ? 10 : 12),
+                      vertical: compact ? 8 : (isPhone ? 12 : 16),
+                    ),
                     decoration: BoxDecoration(
                       border: Border.all(
                         color: Colors.white.withValues(alpha: 0.05),
@@ -398,15 +438,17 @@ class _ControlPanelState extends State<ControlPanel> {
                       children: [
                         Icon(
                           cmd['icon'] as IconData,
-                          size: 36,
+                          size: compact ? 22 : (isPhone ? 30 : 36),
                           color: Colors.white,
                         ),
-                        const SizedBox(height: 16),
+                        SizedBox(height: compact ? 4 : (isPhone ? 10 : 16)),
                         Text(
                           cmd['title'] as String,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 14,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: compact ? 11 : (isPhone ? 13 : 14),
                             fontWeight: FontWeight.w500,
                             color: Colors.white,
                           ),
@@ -423,7 +465,7 @@ class _ControlPanelState extends State<ControlPanel> {
     );
   }
 
-  Widget _buildFeedbackPanel() {
+  Widget _buildFeedbackPanel({bool compact = false}) {
     return LiquidGlass.withOwnLayer(
       fake: true,
       settings: const LiquidGlassSettings(
@@ -433,7 +475,10 @@ class _ControlPanelState extends State<ControlPanel> {
       ),
       shape: const LiquidRoundedRectangle(borderRadius: 100), // Pill shape
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 14 : 24,
+          vertical: compact ? 10 : 16,
+        ),
         decoration: BoxDecoration(
           border: Border.all(
             color: systemMessageColor.withValues(alpha: 0.3),
@@ -465,16 +510,18 @@ class _ControlPanelState extends State<ControlPanel> {
                     ? Icons.error_outline
                     : Icons.check_circle_outline,
                 color: systemMessageColor,
-                size: 20,
+                size: compact ? 18 : 20,
               ),
             if (!isProcessing) const SizedBox(width: 12),
             Expanded(
               child: Text(
                 systemMessage,
+                maxLines: compact ? 2 : null,
+                overflow: compact ? TextOverflow.ellipsis : null,
                 style: TextStyle(
                   color: isProcessing ? Colors.white : systemMessageColor,
                   fontWeight: FontWeight.w500,
-                  fontSize: 15,
+                  fontSize: compact ? 12 : 15,
                 ),
               ),
             ),
@@ -485,14 +532,3 @@ class _ControlPanelState extends State<ControlPanel> {
   }
 }
 
-/// A background with colorful blurred orbs that create beautiful glass refraction
-class _AnimatedBackground extends StatelessWidget {
-  const _AnimatedBackground();
-
-  @override
-  Widget build(BuildContext context) {
-    return Positioned.fill(
-      child: Image.asset('assets/bg.png', fit: BoxFit.cover),
-    );
-  }
-}
