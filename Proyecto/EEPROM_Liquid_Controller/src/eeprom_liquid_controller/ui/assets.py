@@ -31,6 +31,11 @@ def create_hover_image(img: Image.Image) -> Image.Image:
     return enhancer.enhance(1.2)
 
 
+def create_selected_image(img: Image.Image) -> Image.Image:
+    selected = ImageEnhance.Brightness(img).enhance(1.45)
+    return ImageEnhance.Contrast(selected).enhance(1.08)
+
+
 def create_press_image(img: Image.Image) -> Image.Image:
     pressed = ImageEnhance.Brightness(img).enhance(1.08)
     pressed = ImageEnhance.Contrast(pressed).enhance(0.98)
