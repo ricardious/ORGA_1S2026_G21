@@ -18,6 +18,3 @@ EEPROM_Liquid_Controller/
         ├── serial/                 # Comunicacion USB/serial con Arduino
         └── ui/                     # Ventanas, widgets y carga de assets
 ```
-
-`TkForge/` se mantiene fuera de esta estructura porque es una carpeta generada o
-externa y no debe editarse directamente por ahora.
