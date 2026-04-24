@@ -29,34 +29,34 @@ def make_interactive_canvas_image(
 
     image_id = canvas.create_image(x, y, image=normal_image)
     image_states = [normal_image, hover_image, press_image]
+    state = {"hovered": False, "pressed": False}
 
-    canvas.tag_bind(
-        image_id,
-        "<Enter>",
-        lambda event, target=image_id, hover=hover_image: canvas.itemconfig(
-            target, image=hover
-        ),
-    )
-    canvas.tag_bind(
-        image_id,
-        "<Leave>",
-        lambda event, target=image_id, normal=normal_image: canvas.itemconfig(
-            target, image=normal
-        ),
-    )
-    canvas.tag_bind(
-        image_id,
-        "<ButtonPress-1>",
-        lambda event, target=image_id, press=press_image: canvas.itemconfig(
-            target, image=press
-        ),
-    )
-    canvas.tag_bind(
-        image_id,
-        "<ButtonRelease-1>",
-        lambda event, target=image_id, normal=normal_image: canvas.itemconfig(
-            target, image=normal
-        ),
-    )
+    def set_image(image: tk.PhotoImage) -> None:
+        canvas.itemconfig(image_id, image=image)
+
+    def enter(_event: tk.Event) -> None:
+        state["hovered"] = True
+        canvas.config(cursor="hand2")
+        if not state["pressed"]:
+            set_image(hover_image)
+
+    def leave(_event: tk.Event) -> None:
+        state["hovered"] = False
+        state["pressed"] = False
+        canvas.config(cursor="")
+        set_image(normal_image)
+
+    def press(_event: tk.Event) -> None:
+        state["pressed"] = True
+        set_image(press_image)
+
+    def release(_event: tk.Event) -> None:
+        state["pressed"] = False
+        set_image(hover_image if state["hovered"] else normal_image)
+
+    canvas.tag_bind(image_id, "<Enter>", enter)
+    canvas.tag_bind(image_id, "<Leave>", leave)
+    canvas.tag_bind(image_id, "<ButtonPress-1>", press)
+    canvas.tag_bind(image_id, "<ButtonRelease-1>", release)
 
     return image_id, image_states

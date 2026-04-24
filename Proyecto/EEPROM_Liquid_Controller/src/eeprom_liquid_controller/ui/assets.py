@@ -32,8 +32,20 @@ def create_hover_image(img: Image.Image) -> Image.Image:
 
 
 def create_press_image(img: Image.Image) -> Image.Image:
-    enhancer = ImageEnhance.Brightness(img)
-    return enhancer.enhance(0.8)
+    pressed = ImageEnhance.Brightness(img).enhance(1.08)
+    pressed = ImageEnhance.Contrast(pressed).enhance(0.98)
+    width, height = pressed.size
+    scale = 0.94
+    resized_size = (int(width * scale), int(height * scale))
+    resized = pressed.resize(resized_size, Image.Resampling.LANCZOS)
+
+    centered = Image.new("RGBA", pressed.size, (0, 0, 0, 0))
+    centered.paste(
+        resized,
+        ((width - resized_size[0]) // 2, (height - resized_size[1]) // 2),
+        resized if resized.mode == "RGBA" else None,
+    )
+    return centered
 
 
 def pil_to_photoimage(img: Image.Image) -> tk.PhotoImage:
