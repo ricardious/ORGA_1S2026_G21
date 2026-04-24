@@ -1,0 +1,14 @@
+[project]
+name = "eeprom-liquid-controller"
+version = "0.1.0"
+description = "PC app for configuring Arduino EEPROM smart-home scenes."
+requires-python = ">=3.11"
+dependencies = [
+    "Pillow>=10.0",
+]
+
+[project.scripts]
+eeprom-liquid-controller = "eeprom_liquid_controller.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
