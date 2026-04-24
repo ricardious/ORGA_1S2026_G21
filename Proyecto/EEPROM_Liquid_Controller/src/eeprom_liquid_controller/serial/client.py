@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from time import sleep
+from time import monotonic, sleep
 
 
 @dataclass(frozen=True)
@@ -13,6 +13,7 @@ class SerialConfig:
     baudrate: int = 9600
     timeout: float = 2.0
     reset_delay: float = 2.0
+    response_timeout: float = 10.0
     chunk_size: int = 64
 
 
@@ -62,9 +63,26 @@ class ArduinoSerialClient:
                     connection.flush()
                     sent += written
                     if progress_callback is not None:
-                        progress_callback(min(100, int(sent * 100 / total)))
+                        progress_callback(min(95, int(sent * 95 / total)))
 
+                self._wait_for_upload_result(connection)
                 if progress_callback is not None:
                     progress_callback(100)
         except serial.SerialException as exc:
             raise SerialSendError(str(exc)) from exc
+
+    def _wait_for_upload_result(self, connection: object) -> None:
+        deadline = monotonic() + self.config.response_timeout
+        while monotonic() < deadline:
+            raw_line = connection.readline()
+            if not raw_line:
+                continue
+
+            line = raw_line.decode("utf-8", errors="replace").strip()
+            if line == "UPLOAD_OK":
+                return
+            if line.startswith("UPLOAD_ERROR:"):
+                reason = line.split(":", maxsplit=1)[1].strip()
+                raise SerialSendError(reason or "Arduino rechazo el archivo .org.")
+
+        raise SerialSendError("Arduino no confirmo la carga del archivo.")
