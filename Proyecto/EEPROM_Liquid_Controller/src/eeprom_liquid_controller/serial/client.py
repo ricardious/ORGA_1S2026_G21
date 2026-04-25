@@ -13,8 +13,9 @@ class SerialConfig:
     baudrate: int = 9600
     timeout: float = 2.0
     reset_delay: float = 2.0
-    response_timeout: float = 10.0
-    chunk_size: int = 64
+    response_timeout: float = 30.0
+    chunk_size: int = 16
+    chunk_delay: float = 0.03
 
 
 class SerialSendError(RuntimeError):
@@ -64,6 +65,7 @@ class ArduinoSerialClient:
                     sent += written
                     if progress_callback is not None:
                         progress_callback(min(95, int(sent * 95 / total)))
+                    sleep(self.config.chunk_delay)
 
                 self._wait_for_upload_result(connection)
                 if progress_callback is not None:

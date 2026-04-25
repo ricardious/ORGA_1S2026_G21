@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from glob import glob
+from os.path import exists
 from sys import platform
+
+LINUX_PROTEUS_PORTS = ["/tmp/COM_Python"]
 
 
 def list_serial_ports() -> list[str]:
@@ -17,9 +20,10 @@ def list_serial_ports() -> list[str]:
     except ImportError:
         return _fallback_ports()
 
-    return sorted(
+    ports = [
         port.device for port in list_ports.comports() if _is_supported_port(port.device)
-    )
+    ]
+    return sorted(set(ports + _development_ports()))
 
 
 def _is_supported_port(device: str) -> bool:
@@ -43,7 +47,13 @@ def _fallback_ports() -> list[str]:
     else:
         return []
 
-    ports: list[str] = []
+    ports: list[str] = _development_ports()
     for pattern in patterns:
         ports.extend(glob(pattern))
-    return sorted(ports)
+    return sorted(set(ports))
+
+
+def _development_ports() -> list[str]:
+    if not platform.startswith("linux"):
+        return []
+    return [port for port in LINUX_PROTEUS_PORTS if exists(port)]
