@@ -37,6 +37,19 @@ const byte MODE_APAGAR_TODO = 4;
 const byte MODE_COUNT = 5;
 const byte NO_MODE = 255;
 
+const int EEPROM_ADDR_FIESTA = 0;
+const int EEPROM_ADDR_RELAJADO = 36;
+const int EEPROM_ADDR_NOCHE = 72;
+const int EEPROM_ADDR_ENCENDER_TODO = 108;
+const int EEPROM_ADDR_APAGAR_TODO = 144;
+const int MODE_EEPROM_ADDRESS[MODE_COUNT] = {
+  EEPROM_ADDR_FIESTA,
+  EEPROM_ADDR_RELAJADO,
+  EEPROM_ADDR_NOCHE,
+  EEPROM_ADDR_ENCENDER_TODO,
+  EEPROM_ADDR_APAGAR_TODO
+};
+
 const int DOOR_CLOSED_ANGLE = 0;
 const int DOOR_OPEN_ANGLE = 90;
 
@@ -436,7 +449,10 @@ SceneConfig readSceneFromEeprom(byte mode) {
 }
 
 int eepromAddress(byte mode) {
-  return mode * sizeof(SceneConfig);
+  if (mode >= MODE_COUNT) {
+    return -1;
+  }
+  return MODE_EEPROM_ADDRESS[mode];
 }
 
 void seedDefaultScenesIfNeeded() {
