@@ -5,7 +5,7 @@
 *.workspace
 *.tmp
 Project Backups/
-*[Autosaved].pdsprj
+*[[]Autosaved[]].pdsprj
 
 # LaTeX build artifacts
 *.aux
