@@ -18,3 +18,28 @@ EEPROM_Liquid_Controller/
         ├── serial/                 # Comunicacion USB/serial con Arduino
         └── ui/                     # Ventanas, widgets y carga de assets
 ```
+
+# Como ejecutar
+
+Requisitos:
+- Python 3.11 o superior
+
+Desde la carpeta `Proyecto/EEPROM_Liquid_Controller`, instala dependencias con:
+
+```bash
+pip install -e .
+```
+
+Luego puedes ejecutar la app de cualquiera de estas formas:
+
+```bash
+python main.py
+```
+
+```bash
+python -m eeprom_liquid_controller
+```
+
+```bash
+eeprom-liquid-controller
+```
