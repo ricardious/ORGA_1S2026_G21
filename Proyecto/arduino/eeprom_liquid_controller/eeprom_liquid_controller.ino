@@ -230,9 +230,9 @@ void finishUpload() {
 
   uploadActive = false;
   currentUploadMode = NO_MODE;
+  Serial.println("UPLOAD_OK");
   blinkGreenSuccess();
   setReadyState();
-  Serial.println("UPLOAD_OK");
 }
 
 void failUpload(const char *reason) {
