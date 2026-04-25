@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:bluetooth_serial_android/bluetooth_serial_android.dart';
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
@@ -32,6 +36,41 @@ class SmartHomeApp extends StatelessWidget {
   }
 }
 
+class RemoteDevice {
+  const RemoteDevice({
+    required this.name,
+    required this.address,
+  });
+
+  final String name;
+  final String address;
+
+  factory RemoteDevice.fromMap(Map<dynamic, dynamic> raw) {
+    final name = (raw['name'] ?? '').toString().trim();
+    final address = (raw['address'] ?? '').toString().trim();
+    return RemoteDevice(
+      name: name.isEmpty ? 'Dispositivo sin nombre' : name,
+      address: address,
+    );
+  }
+}
+
+class CommandSpec {
+  const CommandSpec({
+    required this.title,
+    required this.icon,
+    required this.command,
+    required this.modeLabel,
+    required this.successMessage,
+  });
+
+  final String title;
+  final IconData icon;
+  final String command;
+  final String modeLabel;
+  final String successMessage;
+}
+
 class ControlPanel extends StatefulWidget {
   const ControlPanel({super.key});
 
@@ -40,39 +79,449 @@ class ControlPanel extends StatefulWidget {
 }
 
 class _ControlPanelState extends State<ControlPanel> {
-  bool isBluetoothConnected = true;
-  String currentMode = 'Modo Relajado';
-  String systemMessage = 'Sistema estable y en línea';
-  Color systemMessageColor = const Color(0xFF00FF66);
-  bool isProcessing = false;
+  static const _okColor = Color(0xFF00FF66);
+  static const _errorColor = Color(0xFFFF3366);
+  static const _infoColor = Color(0xFFB0B3C6);
+  static const _classicUuid = '00001101-0000-1000-8000-00805F9B34FB';
 
-  void _sendCommand(String mode, String message, {bool isError = false}) {
+  final bool _isAndroid = Platform.isAndroid;
+  final List<CommandSpec> _commands = const [
+    CommandSpec(
+      title: 'Modo Fiesta',
+      icon: Icons.celebration,
+      command: 'modo_fiesta',
+      modeLabel: 'Modo Fiesta',
+      successMessage: 'Modo Fiesta enviado',
+    ),
+    CommandSpec(
+      title: 'Modo Relajado',
+      icon: Icons.spa,
+      command: 'modo_relajado',
+      modeLabel: 'Modo Relajado',
+      successMessage: 'Modo Relajado enviado',
+    ),
+    CommandSpec(
+      title: 'Modo Noche',
+      icon: Icons.nightlight_round,
+      command: 'modo_noche',
+      modeLabel: 'Modo Noche',
+      successMessage: 'Modo Noche enviado',
+    ),
+    CommandSpec(
+      title: 'Encender Todo',
+      icon: Icons.power_settings_new,
+      command: 'encender_todo',
+      modeLabel: 'Encender Todo',
+      successMessage: 'Encender Todo enviado',
+    ),
+    CommandSpec(
+      title: 'Apagar Todo',
+      icon: Icons.power_off,
+      command: 'apagar_todo',
+      modeLabel: 'Apagar Todo',
+      successMessage: 'Apagar Todo enviado',
+    ),
+    CommandSpec(
+      title: 'Estado',
+      icon: Icons.analytics,
+      command: 'estado',
+      modeLabel: '',
+      successMessage: 'Consulta de estado enviada',
+    ),
+  ];
+
+  bool isBluetoothConnected = false;
+  bool isProcessing = false;
+  bool _readerRunning = false;
+  String currentMode = 'Sin conexión';
+  String systemMessage = 'Seleccione un dispositivo Bluetooth pareado.';
+  Color systemMessageColor = _infoColor;
+  String _deviceLabel = 'Sin dispositivo';
+  List<RemoteDevice> _pairedDevices = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isAndroid) {
+      unawaited(_loadPairedDevices());
+    } else {
+      currentMode = 'No disponible';
+      systemMessage = 'Bluetooth clásico solo está soportado en Android.';
+      systemMessageColor = _errorColor;
+    }
+  }
+
+  @override
+  void dispose() {
+    _readerRunning = false;
+    if (isBluetoothConnected) {
+      unawaited(FlutterBluetoothSerial.disconnect());
+    }
+    super.dispose();
+  }
+
+  Future<bool> _ensurePermissions() async {
+    try {
+      return await FlutterBluetoothSerial.ensurePermissions();
+    } catch (error) {
+      _setFeedback('No se pudieron solicitar permisos: $error', _errorColor);
+      return false;
+    }
+  }
+
+  Future<void> _loadPairedDevices() async {
+    if (!_isAndroid || !await _ensurePermissions()) {
+      return;
+    }
+    try {
+      final rawDevices = await FlutterBluetoothSerial.getPairedDevices();
+      final devices = rawDevices
+          .map(RemoteDevice.fromMap)
+          .where((device) => device.address.isNotEmpty)
+          .toList()
+        ..sort((left, right) => left.name.compareTo(right.name));
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _pairedDevices = devices;
+      });
+    } catch (error) {
+      _setFeedback('No se pudieron listar dispositivos pareados.', _errorColor);
+    }
+  }
+
+  Future<void> _connectToDevice(RemoteDevice device) async {
+    if (!_isAndroid) {
+      return;
+    }
+    if (!await _ensurePermissions()) {
+      _setFeedback('Permisos Bluetooth denegados.', _errorColor);
+      return;
+    }
+
     setState(() {
       isProcessing = true;
-      systemMessage = "Enviando comando...";
-      systemMessageColor = const Color(0xFFB0B3C6);
+    });
+    _setFeedback('Conectando con ${device.name}...', _infoColor);
+
+    try {
+      if (isBluetoothConnected) {
+        await FlutterBluetoothSerial.disconnect();
+      }
+      final connected = await FlutterBluetoothSerial.connect(
+        device.address,
+        uuid: _classicUuid,
+        timeoutMs: 900,
+      );
+      if (!mounted) {
+        return;
+      }
+      if (!connected) {
+        _setFeedback('No fue posible establecer la conexión.', _errorColor);
+        return;
+      }
+
+      setState(() {
+        _deviceLabel = device.name;
+        isBluetoothConnected = true;
+        currentMode = 'Conectado';
+      });
+      _setFeedback('Conectado a ${device.name}.', _okColor);
+      _startReadLoop();
+    } catch (error) {
+      _setFeedback('Error al conectar: $error', _errorColor);
+    } finally {
+      if (mounted) {
+        setState(() {
+          isProcessing = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _disconnectBluetooth() async {
+    _readerRunning = false;
+    try {
+      await FlutterBluetoothSerial.disconnect();
+    } catch (_) {
+      // Ignore explicit disconnect failures.
+    }
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      isBluetoothConnected = false;
+      currentMode = 'Sin conexión';
+      _deviceLabel = 'Sin dispositivo';
+    });
+    _setFeedback('Bluetooth desconectado.', _errorColor);
+  }
+
+  void _startReadLoop() {
+    if (_readerRunning) {
+      return;
+    }
+    _readerRunning = true;
+    unawaited(_readLoop());
+  }
+
+  Future<void> _readLoop() async {
+    while (_readerRunning && isBluetoothConnected) {
+      try {
+        final line = await FlutterBluetoothSerial.readLine('\n');
+        if (!_readerRunning || !mounted) {
+          break;
+        }
+        final trimmed = line?.trim() ?? '';
+        if (trimmed.isEmpty) {
+          await Future<void>.delayed(const Duration(milliseconds: 80));
+          continue;
+        }
+        _handleIncomingLine(trimmed);
+      } catch (error) {
+        if (!mounted) {
+          break;
+        }
+        setState(() {
+          isBluetoothConnected = false;
+          isProcessing = false;
+          currentMode = 'Sin conexión';
+          _deviceLabel = 'Sin dispositivo';
+        });
+        _setFeedback('Se perdió la conexión Bluetooth.', _errorColor);
+        break;
+      }
+    }
+    _readerRunning = false;
+  }
+
+  void _handleIncomingLine(String line) {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      isProcessing = false;
     });
 
-    // Simulate network/bluetooth delay
-    Future.delayed(const Duration(milliseconds: 800), () {
-      if (!mounted) return;
+    if (line == 'READY') {
+      _setFeedback('Arduino listo para recibir comandos.', _okColor);
+      return;
+    }
+    if (line.startsWith('MODE_OK:')) {
+      final mode = line.split(':').last.trim();
+      setState(() {
+        currentMode = _formatMode(mode);
+      });
+      _setFeedback('${_formatMode(mode)} activado.', _okColor);
+      return;
+    }
+    if (line.startsWith('STATUS:')) {
+      final parts = line.split(':');
+      if (parts.length >= 3) {
+        setState(() {
+          currentMode = _formatMode(parts[1]);
+        });
+        _setFeedback(
+          parts[2].trim().toUpperCase() == 'OK'
+              ? 'Estado correcto en ${_formatMode(parts[1])}.'
+              : 'Arduino reportó error en ${_formatMode(parts[1])}.',
+          parts[2].trim().toUpperCase() == 'OK' ? _okColor : _errorColor,
+        );
+        return;
+      }
+    }
+    if (line == 'DOOR_OPEN') {
+      _setFeedback('Puerta abierta.', _okColor);
+      return;
+    }
+    if (line == 'DOOR_CLOSED') {
+      _setFeedback('Puerta cerrada.', _okColor);
+      return;
+    }
+    if (line == 'CMD_ERROR' || line == 'MODE_ERROR') {
+      _setFeedback('El Arduino rechazó el comando.', _errorColor);
+      return;
+    }
+
+    _setFeedback(line, _infoColor);
+  }
+
+  Future<void> _sendCommand(CommandSpec command) async {
+    if (!isBluetoothConnected) {
+      _setFeedback('Conecte un dispositivo Bluetooth primero.', _errorColor);
+      return;
+    }
+
+    setState(() {
+      isProcessing = true;
+    });
+    _setFeedback('Enviando comando...', _infoColor);
+
+    try {
+      await FlutterBluetoothSerial.write('${command.command}\r\n');
+      if (command.modeLabel.isNotEmpty) {
+        setState(() {
+          currentMode = command.modeLabel;
+        });
+      }
+      _setFeedback(command.successMessage, _okColor);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
       setState(() {
         isProcessing = false;
-        if (isError) {
-          systemMessage = message;
-          systemMessageColor = const Color(0xFFFF3366);
-        } else {
-          currentMode = mode;
-          systemMessage = message;
-          systemMessageColor = const Color(0xFF00FF66);
-        }
       });
+      _setFeedback('No se pudo enviar el comando.', _errorColor);
+    }
+  }
+
+  Future<void> _openBluetoothSheet() async {
+    if (!_isAndroid) {
+      _setFeedback('Bluetooth clásico solo está soportado en Android.', _errorColor);
+      return;
+    }
+
+    await _loadPairedDevices();
+    if (!mounted) {
+      return;
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF10141C),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Dispositivos pareados',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        unawaited(_loadPairedDevices());
+                        Navigator.of(context).pop();
+                        unawaited(_openBluetoothSheet());
+                      },
+                      icon: const Icon(Icons.refresh, color: Colors.white),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Empareje antes el HC-05/HC-06 desde ajustes de Android.',
+                  style: TextStyle(color: Color(0xFFB0B3C6)),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: _pairedDevices.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'No hay dispositivos pareados.',
+                            style: TextStyle(color: Color(0xFFB0B3C6)),
+                          ),
+                        )
+                      : ListView.separated(
+                          itemCount: _pairedDevices.length,
+                          separatorBuilder: (_, _) => Divider(
+                            color: Colors.white.withValues(alpha: 0.08),
+                          ),
+                          itemBuilder: (context, index) {
+                            final device = _pairedDevices[index];
+                            return ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: const Icon(
+                                Icons.bluetooth,
+                                color: Colors.white,
+                              ),
+                              title: Text(
+                                device.name,
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                              subtitle: Text(
+                                device.address,
+                                style: const TextStyle(color: Color(0xFFB0B3C6)),
+                              ),
+                              trailing: FilledButton(
+                                onPressed: () {
+                                  Navigator.of(context).pop();
+                                  unawaited(_connectToDevice(device));
+                                },
+                                child: const Text('Conectar'),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+                if (isBluetoothConnected)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          unawaited(_disconnectBluetooth());
+                        },
+                        icon: const Icon(Icons.link_off),
+                        label: const Text('Desconectar'),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _setFeedback(String message, Color color) {
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      systemMessage = message;
+      systemMessageColor = color;
     });
+  }
+
+  String _formatMode(String rawMode) {
+    switch (rawMode.trim().toLowerCase()) {
+      case 'modo_fiesta':
+        return 'Modo Fiesta';
+      case 'modo_relajado':
+        return 'Modo Relajado';
+      case 'modo_noche':
+        return 'Modo Noche';
+      case 'encender_todo':
+        return 'Encender Todo';
+      case 'apagar_todo':
+        return 'Apagar Todo';
+      default:
+        return rawMode;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Determine layout based on width
     final isTablet = MediaQuery.of(context).size.width >= 900;
 
     return Scaffold(
@@ -115,7 +564,6 @@ class _ControlPanelState extends State<ControlPanel> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Left Column (30%)
             Expanded(
               flex: 3,
               child: Column(
@@ -130,7 +578,6 @@ class _ControlPanelState extends State<ControlPanel> {
               ),
             ),
             const SizedBox(width: 48),
-            // Right Column (70%)
             Expanded(
               flex: 7,
               child: Column(
@@ -191,18 +638,7 @@ class _ControlPanelState extends State<ControlPanel> {
         ),
         const SizedBox(width: 16),
         GestureDetector(
-          onTap: () {
-            setState(() {
-              isBluetoothConnected = !isBluetoothConnected;
-              if (!isBluetoothConnected) {
-                systemMessage = "Bluetooth desconectado";
-                systemMessageColor = const Color(0xFFFF3366);
-              } else {
-                systemMessage = "Bluetooth conectado";
-                systemMessageColor = const Color(0xFF00FF66);
-              }
-            });
-          },
+          onTap: _openBluetoothSheet,
           child: LiquidGlass.withOwnLayer(
             fake: true,
             settings: const LiquidGlassSettings(
@@ -258,16 +694,23 @@ class _ControlPanelState extends State<ControlPanel> {
               color: Colors.white.withValues(alpha: 0.1),
               width: 1.0,
             ),
-            borderRadius: BorderRadius.circular(32), // Visual fallback
+            borderRadius: BorderRadius.circular(32),
           ),
           child: LayoutBuilder(
             builder: (context, constraints) {
               final panelHeight = constraints.maxHeight;
-              final labelSize = compact ? (panelHeight * 0.11).clamp(13.0, 16.0) : 14.0;
-              final modeSize = compact ? (panelHeight * 0.24).clamp(20.0, 28.0) : 26.0;
-              final statusSize = compact ? (panelHeight * 0.12).clamp(12.0, 15.0) : 14.0;
-              final topGap = compact ? (panelHeight * 0.06).clamp(4.0, 8.0) : 8.0;
-              final bottomGap = compact ? (panelHeight * 0.08).clamp(6.0, 12.0) : 12.0;
+              final labelSize =
+                  compact ? (panelHeight * 0.11).clamp(13.0, 16.0) : 14.0;
+              final modeSize =
+                  compact ? (panelHeight * 0.24).clamp(20.0, 28.0) : 26.0;
+              final statusSize =
+                  compact ? (panelHeight * 0.12).clamp(12.0, 15.0) : 14.0;
+              final topGap = compact
+                  ? (panelHeight * 0.06).clamp(4.0, 8.0)
+                  : 8.0;
+              final bottomGap = compact
+                  ? (panelHeight * 0.08).clamp(6.0, 12.0)
+                  : 12.0;
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -300,15 +743,12 @@ class _ControlPanelState extends State<ControlPanel> {
                         width: 8,
                         height: 8,
                         decoration: BoxDecoration(
-                          color: isBluetoothConnected
-                              ? const Color(0xFF00FF66)
-                              : const Color(0xFFFF3366),
+                          color: isBluetoothConnected ? _okColor : _errorColor,
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: isBluetoothConnected
-                                  ? const Color(0xFF00FF66).withValues(alpha: 0.5)
-                                  : const Color(0xFFFF3366).withValues(alpha: 0.5),
+                              color: (isBluetoothConnected ? _okColor : _errorColor)
+                                  .withValues(alpha: 0.5),
                               blurRadius: 8,
                             ),
                           ],
@@ -318,7 +758,7 @@ class _ControlPanelState extends State<ControlPanel> {
                       Expanded(
                         child: Text(
                           isBluetoothConnected
-                              ? 'Sistema Listo'
+                              ? '$_deviceLabel conectado'
                               : 'Sistema No Disponible',
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -347,41 +787,6 @@ class _ControlPanelState extends State<ControlPanel> {
   }) {
     final isPhone = crossAxisCount == 2;
 
-    // Map of commands to icons and action
-    final commands = [
-      {
-        'title': 'Modo Fiesta',
-        'icon': Icons.celebration,
-        'action': () => _sendCommand('Modo Fiesta', 'Modo Fiesta activado'),
-      },
-      {
-        'title': 'Modo Relajado',
-        'icon': Icons.spa,
-        'action': () => _sendCommand('Modo Relajado', 'Modo Relajado activado'),
-      },
-      {
-        'title': 'Modo Noche',
-        'icon': Icons.nightlight_round,
-        'action': () => _sendCommand('Modo Noche', 'Modo Noche activado'),
-      },
-      {
-        'title': 'Encender Todo',
-        'icon': Icons.power_settings_new,
-        'action': () => _sendCommand(currentMode, 'Todas las luces encendidas'),
-      },
-      {
-        'title': 'Apagar Todo',
-        'icon': Icons.power_off,
-        'action': () => _sendCommand('Modo Noche', 'Todo el sistema apagado'),
-      },
-      {
-        'title': 'Estado',
-        'icon': Icons.analytics,
-        'action': () =>
-            _sendCommand(currentMode, 'Análisis: Todo operando normal'),
-      },
-    ];
-
     return LiquidGlassLayer(
       fake: true,
       settings: const LiquidGlassSettings(
@@ -392,31 +797,21 @@ class _ControlPanelState extends State<ControlPanel> {
       ),
       child: GridView.builder(
         shrinkWrap: shrinkWrap,
-        physics: const NeverScrollableScrollPhysics(),
+        physics: const ClampingScrollPhysics(),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: crossAxisCount,
           crossAxisSpacing: compact ? 8 : (isPhone ? 12 : 16),
           mainAxisSpacing: compact ? 8 : (isPhone ? 12 : 16),
           childAspectRatio: compact ? 1.22 : (isPhone ? 0.95 : 1.1),
         ),
-        itemCount: commands.length,
+        itemCount: _commands.length,
         itemBuilder: (context, index) {
-          final cmd = commands[index];
+          final command = _commands[index];
           return LiquidStretch(
             stretch: 0.3,
             interactionScale: 0.95,
             child: GestureDetector(
-              onTap: () {
-                if (!isBluetoothConnected) {
-                  _sendCommand(
-                    currentMode,
-                    'Error: Bluetooth desconectado',
-                    isError: true,
-                  );
-                  return;
-                }
-                (cmd['action'] as Function)();
-              },
+              onTap: () => _sendCommand(command),
               child: LiquidGlass(
                 shape: LiquidRoundedSuperellipse(borderRadius: 24),
                 child: GlassGlow(
@@ -437,13 +832,13 @@ class _ControlPanelState extends State<ControlPanel> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          cmd['icon'] as IconData,
-                          size: compact ? 22 : (isPhone ? 30 : 36),
+                          command.icon,
+                          size: compact ? 28 : (isPhone ? 38 : 46),
                           color: Colors.white,
                         ),
                         SizedBox(height: compact ? 4 : (isPhone ? 10 : 16)),
                         Text(
-                          cmd['title'] as String,
+                          command.title,
                           textAlign: TextAlign.center,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -473,7 +868,7 @@ class _ControlPanelState extends State<ControlPanel> {
         blur: 15,
         glassColor: Color(0x1AFFFFFF),
       ),
-      shape: const LiquidRoundedRectangle(borderRadius: 100), // Pill shape
+      shape: const LiquidRoundedRectangle(borderRadius: 100),
       child: Container(
         padding: EdgeInsets.symmetric(
           horizontal: compact ? 14 : 24,
@@ -506,7 +901,7 @@ class _ControlPanelState extends State<ControlPanel> {
               )
             else
               Icon(
-                systemMessageColor == const Color(0xFFFF3366)
+                systemMessageColor == _errorColor
                     ? Icons.error_outline
                     : Icons.check_circle_outline,
                 color: systemMessageColor,
@@ -531,4 +926,3 @@ class _ControlPanelState extends State<ControlPanel> {
     );
   }
 }
-

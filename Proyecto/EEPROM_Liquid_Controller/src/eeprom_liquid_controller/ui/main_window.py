@@ -616,6 +616,11 @@ class MainWindow:
                     self._update_send_progress,
                     percent,
                 ),
+                log_callback=lambda message: self.window.after(
+                    0,
+                    self.append_terminal,
+                    f"> {message}",
+                ),
             )
         except SerialSendError as exc:
             self.window.after(0, self._handle_send_error, str(exc))
