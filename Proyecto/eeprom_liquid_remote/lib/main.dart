@@ -160,11 +160,48 @@ class _ControlPanelState extends State<ControlPanel> {
     super.dispose();
   }
 
+  String _shortBluetoothError(
+    Object error, {
+    String fallback = 'Error de Bluetooth.',
+  }) {
+    final raw = error.toString().toLowerCase();
+
+    if (raw.contains('permission') || raw.contains('denied')) {
+      return 'Permiso Bluetooth denegado.';
+    }
+    if (raw.contains('timeout') || raw.contains('timed out')) {
+      return 'Tiempo de espera agotado.';
+    }
+    if (raw.contains('socket') || raw.contains('connect')) {
+      return 'No se pudo conectar.';
+    }
+    if (raw.contains('bond') || raw.contains('pair')) {
+      return 'El dispositivo no está emparejado.';
+    }
+    if (raw.contains('adapter') || raw.contains('disabled')) {
+      return 'Active el Bluetooth del teléfono.';
+    }
+    if (raw.contains('read')) {
+      return 'No se pudo leer la respuesta.';
+    }
+    if (raw.contains('write')) {
+      return 'No se pudo enviar el comando.';
+    }
+
+    return fallback;
+  }
+
   Future<bool> _ensurePermissions() async {
     try {
       return await FlutterBluetoothSerial.ensurePermissions();
     } catch (error) {
-      _setFeedback('No se pudieron solicitar permisos: $error', _errorColor);
+      _setFeedback(
+        _shortBluetoothError(
+          error,
+          fallback: 'No se pudieron solicitar permisos.',
+        ),
+        _errorColor,
+      );
       return false;
     }
   }
@@ -230,7 +267,10 @@ class _ControlPanelState extends State<ControlPanel> {
       _setFeedback('Conectado a ${device.name}.', _okColor);
       _startReadLoop();
     } catch (error) {
-      _setFeedback('Error al conectar: $error', _errorColor);
+      _setFeedback(
+        _shortBluetoothError(error, fallback: 'Error al conectar.'),
+        _errorColor,
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -522,11 +562,17 @@ class _ControlPanelState extends State<ControlPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final isTablet = MediaQuery.of(context).size.width >= 900;
+    final media = MediaQuery.of(context);
+    final isTablet = media.size.shortestSide >= 600;
+    final isPortrait = media.orientation == Orientation.portrait;
 
     return Scaffold(
       body: SafeArea(
-        child: isTablet ? _buildTabletLayout() : _buildPhoneLayout(),
+        child: isTablet
+            ? (isPortrait
+                ? _buildTabletPortraitLayout()
+                : _buildTabletLandscapeLayout())
+            : _buildPhoneLayout(),
       ),
     );
   }
@@ -557,7 +603,42 @@ class _ControlPanelState extends State<ControlPanel> {
     );
   }
 
-  Widget _buildTabletLayout() {
+  Widget _buildTabletPortraitLayout() {
+    return _buildBackgroundSurface(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(28, 24, 28, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildHeader(),
+            const SizedBox(height: 24),
+            SizedBox(
+              height: 220,
+              child: _buildStatusPanel(),
+            ),
+            const SizedBox(height: 24),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Comandos Principales',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Expanded(child: _buildCommandsGrid(2)),
+            const SizedBox(height: 20),
+            _buildFeedbackPanel(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTabletLandscapeLayout() {
     return _buildBackgroundSurface(
       child: Padding(
         padding: const EdgeInsets.all(32.0),
