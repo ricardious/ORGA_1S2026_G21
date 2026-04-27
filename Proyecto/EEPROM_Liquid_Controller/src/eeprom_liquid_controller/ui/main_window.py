@@ -10,6 +10,8 @@ import tkinter as tk
 from tkinter import filedialog
 
 from eeprom_liquid_controller.config import (
+    APP_ICON_ICO,
+    APP_ICON_PNG,
     APP_TITLE,
     WINDOW_BACKGROUND,
     WINDOW_HEIGHT,
@@ -73,6 +75,9 @@ class MainWindow:
         self.window.configure(bg=WINDOW_BACKGROUND)
         self.window.title(APP_TITLE)
         self.window.resizable(False, False)
+        self._app_icon: tk.PhotoImage | None = None
+        self._apply_window_icon()
+        self.window.after_idle(self._apply_window_icon)
 
         self.canvas = tk.Canvas(
             self.window,
@@ -124,6 +129,19 @@ class MainWindow:
 
     def run(self) -> None:
         self.window.mainloop()
+
+    def _apply_window_icon(self) -> None:
+        icon_png = load_asset(APP_ICON_PNG)
+        if icon_png.exists():
+            self._app_icon = tk.PhotoImage(file=icon_png)
+            self.window.iconphoto(True, self._app_icon)
+
+        icon_ico = load_asset(APP_ICON_ICO)
+        if icon_ico.exists():
+            try:
+                self.window.wm_iconbitmap(str(icon_ico))
+            except tk.TclError:
+                pass
 
     def _photo(self, asset_name: str) -> tk.PhotoImage:
         image = tk.PhotoImage(file=load_asset(asset_name))
