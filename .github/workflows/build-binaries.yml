@@ -54,6 +54,25 @@ jobs:
           name: EEPROM_Liquid_Controller-${{ matrix.os_name }}
           path: Proyecto/EEPROM_Liquid_Controller/dist/*
 
+      - name: Prepare Release File
+        working-directory: Proyecto/EEPROM_Liquid_Controller/dist
+        run: |
+          if [ "${{ matrix.os_name }}" = "macos" ]; then
+            zip -r EEPROM_Liquid_Controller_macos.zip EEPROM_Liquid_Controller_macos.app
+            echo "RELEASE_FILE=Proyecto/EEPROM_Liquid_Controller/dist/EEPROM_Liquid_Controller_macos.zip" >> $GITHUB_ENV
+          elif [ "${{ matrix.os_name }}" = "windows" ]; then
+            echo "RELEASE_FILE=Proyecto/EEPROM_Liquid_Controller/dist/EEPROM_Liquid_Controller_windows.exe" >> $GITHUB_ENV
+          else
+            echo "RELEASE_FILE=Proyecto/EEPROM_Liquid_Controller/dist/EEPROM_Liquid_Controller_linux" >> $GITHUB_ENV
+          fi
+        shell: bash
+
+      - name: Publish to GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: ${{ env.RELEASE_FILE }}
+
   build-apk:
     name: Build Flutter APK
     runs-on: ubuntu-latest
@@ -86,6 +105,12 @@ jobs:
           name: EEPROM_Liquid_Remote-apk
           path: Proyecto/eeprom_liquid_remote/build/app/outputs/flutter-apk/app-release.apk
 
+      - name: Publish to GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: Proyecto/eeprom_liquid_remote/build/app/outputs/flutter-apk/app-release.apk
+
   build-ios:
     name: Build Flutter iOS
     runs-on: macos-latest
@@ -104,12 +129,20 @@ jobs:
 
       - name: Build iOS
         working-directory: Proyecto/eeprom_liquid_remote
-        # Construye la app sin firma (ya que en GitHub Actions no hay certificados configurados)
         run: flutter build ios --release --no-codesign
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: EEPROM_Liquid_Remote-ios
-          # Sube la carpeta .app de iOS (GitHub la comprimirá en zip automáticamente)
           path: Proyecto/eeprom_liquid_remote/build/ios/iphoneos/Runner.app
+
+      - name: Prepare Release File
+        working-directory: Proyecto/eeprom_liquid_remote/build/ios/iphoneos
+        run: zip -r Runner.zip Runner.app
+
+      - name: Publish to GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: Proyecto/eeprom_liquid_remote/build/ios/iphoneos/Runner.zip
