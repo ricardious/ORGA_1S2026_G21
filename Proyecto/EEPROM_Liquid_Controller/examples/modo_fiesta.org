@@ -1,0 +1,9 @@
+// Configuracion de modos para el sistema de control
+conf_ini
+
+modo_fiesta
+Mensaje en LCD: "Modo: FIESTA."
+Ventilador: ON
+LED'S: Alternandose
+
+conf:fin

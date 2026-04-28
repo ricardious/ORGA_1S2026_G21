@@ -1,0 +1,115 @@
+name: Build Binaries
+
+on:
+  workflow_dispatch: # Permite ejecutar la action manualmente desde GitHub
+  push:
+    tags:
+      - 'v*' # Se ejecuta al hacer un tag, ej: git tag v1.0.0
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            os_name: linux
+            separator: ":"
+          - os: windows-latest
+            os_name: windows
+            separator: ";"
+          - os: macos-latest
+            os_name: macos
+            separator: ":"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11' 
+
+      - name: Install dependencies
+        working-directory: Proyecto/EEPROM_Liquid_Controller
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build with PyInstaller
+        working-directory: Proyecto/EEPROM_Liquid_Controller
+        run: >
+          pyinstaller --noconfirm --onefile --windowed
+          --name "EEPROM_Liquid_Controller_${{ matrix.os_name }}"
+          --add-data "assets${{ matrix.separator }}assets"
+          main.py
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EEPROM_Liquid_Controller-${{ matrix.os_name }}
+          path: Proyecto/EEPROM_Liquid_Controller/dist/*
+
+  build-apk:
+    name: Build Flutter APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Install dependencies
+        working-directory: Proyecto/eeprom_liquid_remote
+        run: flutter pub get
+
+      - name: Build APK
+        working-directory: Proyecto/eeprom_liquid_remote
+        run: flutter build apk --release
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EEPROM_Liquid_Remote-apk
+          path: Proyecto/eeprom_liquid_remote/build/app/outputs/flutter-apk/app-release.apk
+
+  build-ios:
+    name: Build Flutter iOS
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Install dependencies
+        working-directory: Proyecto/eeprom_liquid_remote
+        run: flutter pub get
+
+      - name: Build iOS
+        working-directory: Proyecto/eeprom_liquid_remote
+        # Construye la app sin firma (ya que en GitHub Actions no hay certificados configurados)
+        run: flutter build ios --release --no-codesign
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EEPROM_Liquid_Remote-ios
+          # Sube la carpeta .app de iOS (GitHub la comprimirá en zip automáticamente)
+          path: Proyecto/eeprom_liquid_remote/build/ios/iphoneos/Runner.app

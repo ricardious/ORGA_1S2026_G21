@@ -1,9 +1,11 @@
 # Proteus temporary/local files
+.codex
+**/.codex
 *.pdsbak
 *.workspace
 *.tmp
 Project Backups/
-*[Autosaved].pdsprj
+*[[]Autosaved[]].pdsprj
 
 # LaTeX build artifacts
 *.aux
@@ -40,3 +42,5 @@ Práctica 3/carrusel_ctrl/build/*
 !Práctica 3/carrusel_ctrl/build/arduino.avr.uno/
 Práctica 3/carrusel_ctrl/build/arduino.avr.uno/*
 !Práctica 3/carrusel_ctrl/build/arduino.avr.uno/carrusel_ctrl.ino.hex
+Proyecto/arduino/eeprom_liquid_controller/eeprom_liquid_controller_dfrobot/build/
+Proyecto/arduino/eeprom_liquid_controller/i2c_scanner/build/
