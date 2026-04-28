@@ -11,7 +11,7 @@
         tools:node="remove" />
 
     <application
-        android:label="eeprom_liquid_remote"
+        android:label="EEPROM Liquid Remote"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
