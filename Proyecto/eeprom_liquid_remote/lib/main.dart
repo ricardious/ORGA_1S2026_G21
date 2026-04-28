@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:bluetooth_serial_android/bluetooth_serial_android.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -41,10 +42,12 @@ class RemoteDevice {
   const RemoteDevice({
     required this.name,
     required this.address,
+    this.bonded = false,
   });
 
   final String name;
   final String address;
+  final bool bonded;
 
   factory RemoteDevice.fromMap(Map<dynamic, dynamic> raw) {
     final name = (raw['name'] ?? '').toString().trim();
@@ -52,6 +55,7 @@ class RemoteDevice {
     return RemoteDevice(
       name: name.isEmpty ? 'Dispositivo sin nombre' : name,
       address: address,
+      bonded: raw['bonded'] == true,
     );
   }
 }
@@ -84,6 +88,9 @@ class _ControlPanelState extends State<ControlPanel> {
   static const _errorColor = Color(0xFFFF3366);
   static const _infoColor = Color(0xFFB0B3C6);
   static const _classicUuid = '00001101-0000-1000-8000-00805F9B34FB';
+  static const _discoveryChannel = MethodChannel(
+    'eeprom_liquid_remote/discovery',
+  );
 
   final bool _isAndroid = Platform.isAndroid;
   final List<CommandSpec> _commands = const [
@@ -135,10 +142,31 @@ class _ControlPanelState extends State<ControlPanel> {
   bool isProcessing = false;
   bool _readerRunning = false;
   String currentMode = 'Sin conexión';
-  String systemMessage = 'Seleccione un dispositivo Bluetooth pareado.';
+  String systemMessage = 'Seleccione un dispositivo Bluetooth.';
   Color systemMessageColor = _infoColor;
   String _deviceLabel = 'Sin dispositivo';
   List<RemoteDevice> _pairedDevices = const [];
+  List<RemoteDevice> _nearbyDevices = const [];
+
+  List<Object> get _deviceEntries {
+    final entries = <Object>[];
+    if (_pairedDevices.isNotEmpty) {
+      entries
+        ..add('GUARDADOS')
+        ..addAll(_pairedDevices);
+    }
+
+    final pairedAddresses = _pairedDevices.map((device) => device.address).toSet();
+    final nearbyOnly = _nearbyDevices
+        .where((device) => !pairedAddresses.contains(device.address))
+        .toList();
+    if (nearbyOnly.isNotEmpty) {
+      entries
+        ..add('CERCANOS')
+        ..addAll(nearbyOnly);
+    }
+    return entries;
+  }
 
   @override
   void initState() {
@@ -194,8 +222,9 @@ class _ControlPanelState extends State<ControlPanel> {
 
   Future<bool> _ensurePermissions() async {
     try {
-      final status = await Permission.bluetoothConnect.request();
-      return status.isGranted;
+      final connectStatus = await Permission.bluetoothConnect.request();
+      final scanStatus = await Permission.bluetoothScan.request();
+      return connectStatus.isGranted && scanStatus.isGranted;
     } catch (error) {
       _setFeedback(
         _shortBluetoothError(
@@ -225,8 +254,41 @@ class _ControlPanelState extends State<ControlPanel> {
       setState(() {
         _pairedDevices = devices;
       });
+      await _scanNearbyDevices();
     } catch (error) {
-      _setFeedback('No se pudieron listar dispositivos pareados.', _errorColor);
+      _setFeedback('No se pudieron listar dispositivos guardados.', _errorColor);
+    }
+  }
+
+  Future<void> _scanNearbyDevices() async {
+    if (!_isAndroid) {
+      return;
+    }
+    try {
+      final rawDevices = await _discoveryChannel.invokeMethod<List<dynamic>>(
+        'scanDevices',
+      );
+      final devices = (rawDevices ?? const [])
+          .map((raw) => RemoteDevice.fromMap(raw as Map<dynamic, dynamic>))
+          .where((device) => device.address.isNotEmpty)
+          .toList();
+      devices.sort((left, right) => left.name.compareTo(right.name));
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _nearbyDevices = devices;
+      });
+    } on PlatformException catch (error) {
+      if (error.code == 'NO_PERMISSION') {
+        _setFeedback('Permiso de escaneo no concedido.', _errorColor);
+      } else if (error.code == 'BT_DISABLED') {
+        _setFeedback('Active el Bluetooth del teléfono.', _errorColor);
+      } else if (error.code != 'SCAN_IN_PROGRESS') {
+        _setFeedback('No se pudieron buscar dispositivos.', _errorColor);
+      }
+    } catch (_) {
+      _setFeedback('No se pudieron buscar dispositivos.', _errorColor);
     }
   }
 
@@ -448,7 +510,7 @@ class _ControlPanelState extends State<ControlPanel> {
                   children: [
                     const Expanded(
                       child: Text(
-                        'Dispositivos pareados',
+                        'Dispositivos Bluetooth',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 20,
@@ -468,25 +530,40 @@ class _ControlPanelState extends State<ControlPanel> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Empareje antes el HC-05/HC-06 desde ajustes de Android.',
+                  'Se muestran guardados y encontrados cercanos.',
                   style: TextStyle(color: Color(0xFFB0B3C6)),
                 ),
                 const SizedBox(height: 16),
                 Expanded(
-                  child: _pairedDevices.isEmpty
+                  child: (_pairedDevices.isEmpty && _nearbyDevices.isEmpty)
                       ? const Center(
                           child: Text(
-                            'No hay dispositivos pareados.',
+                            'No se encontraron dispositivos.',
                             style: TextStyle(color: Color(0xFFB0B3C6)),
                           ),
                         )
                       : ListView.separated(
-                          itemCount: _pairedDevices.length,
+                          itemCount: _deviceEntries.length,
                           separatorBuilder: (_, _) => Divider(
                             color: Colors.white.withValues(alpha: 0.08),
                           ),
                           itemBuilder: (context, index) {
-                            final device = _pairedDevices[index];
+                            final entry = _deviceEntries[index];
+                            if (entry is String) {
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 8, bottom: 4),
+                                child: Text(
+                                  entry,
+                                  style: const TextStyle(
+                                    color: Color(0xFFB0B3C6),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                              );
+                            }
+                            final device = entry as RemoteDevice;
                             return ListTile(
                               contentPadding: EdgeInsets.zero,
                               leading: const Icon(
@@ -498,7 +575,9 @@ class _ControlPanelState extends State<ControlPanel> {
                                 style: const TextStyle(color: Colors.white),
                               ),
                               subtitle: Text(
-                                device.address,
+                                device.bonded
+                                    ? '${device.address} • Guardado'
+                                    : '${device.address} • Cercano',
                                 style: const TextStyle(color: Color(0xFFB0B3C6)),
                               ),
                               trailing: FilledButton(
