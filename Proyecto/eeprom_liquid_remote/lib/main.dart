@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:bluetooth_serial_android/bluetooth_serial_android.dart';
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 const String kAppName = 'EEPROM Liquid Remote';
 
@@ -193,12 +194,13 @@ class _ControlPanelState extends State<ControlPanel> {
 
   Future<bool> _ensurePermissions() async {
     try {
-      return await FlutterBluetoothSerial.ensurePermissions();
+      final status = await Permission.bluetoothConnect.request();
+      return status.isGranted;
     } catch (error) {
       _setFeedback(
         _shortBluetoothError(
           error,
-          fallback: 'No se pudieron solicitar permisos.',
+          fallback: 'No se pudo pedir permiso Bluetooth.',
         ),
         _errorColor,
       );
@@ -867,6 +869,7 @@ class _ControlPanelState extends State<ControlPanel> {
     bool compact = false,
   }) {
     final isPhone = crossAxisCount == 2;
+    final spacing = compact ? 8.0 : (isPhone ? 12.0 : 16.0);
 
     return LiquidGlassLayer(
       fake: true,
@@ -876,65 +879,84 @@ class _ControlPanelState extends State<ControlPanel> {
         glassColor: Color(0x0CFFFFFF),
         lightIntensity: 1.0,
       ),
-      child: GridView.builder(
-        shrinkWrap: shrinkWrap,
-        physics: const ClampingScrollPhysics(),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: crossAxisCount,
-          crossAxisSpacing: compact ? 8 : (isPhone ? 12 : 16),
-          mainAxisSpacing: compact ? 8 : (isPhone ? 12 : 16),
-          childAspectRatio: compact ? 1.22 : (isPhone ? 0.95 : 1.1),
-        ),
-        itemCount: _commands.length,
-        itemBuilder: (context, index) {
-          final command = _commands[index];
-          return LiquidStretch(
-            stretch: 0.3,
-            interactionScale: 0.95,
-            child: GestureDetector(
-              onTap: () => _sendCommand(command),
-              child: LiquidGlass(
-                shape: LiquidRoundedSuperellipse(borderRadius: 24),
-                child: GlassGlow(
-                  glowColor: Colors.white.withValues(alpha: 0.15),
-                  glowRadius: 1.5,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: compact ? 8 : (isPhone ? 10 : 12),
-                      vertical: compact ? 8 : (isPhone ? 12 : 16),
-                    ),
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.05),
-                        width: 1.0,
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          command.icon,
-                          size: compact ? 28 : (isPhone ? 38 : 46),
-                          color: Colors.white,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final rowCount = (_commands.length / crossAxisCount).ceil();
+          final tileWidth =
+              (constraints.maxWidth - (spacing * (crossAxisCount - 1))) /
+              crossAxisCount;
+          final tileHeight =
+              (constraints.maxHeight - (spacing * (rowCount - 1))) / rowCount;
+          final childAspectRatio = tileWidth / tileHeight;
+          final dense = compact || tileHeight < 140;
+          final iconSize = dense ? (tileHeight * 0.26).clamp(22.0, 34.0) : 46.0;
+          final textSize = dense ? (tileHeight * 0.11).clamp(11.0, 13.0) : 14.0;
+          final verticalPadding = dense
+              ? (tileHeight * 0.08).clamp(6.0, 10.0)
+              : 16.0;
+          final textGap = dense ? (tileHeight * 0.05).clamp(4.0, 8.0) : 16.0;
+
+          return GridView.builder(
+            shrinkWrap: shrinkWrap,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              crossAxisSpacing: spacing,
+              mainAxisSpacing: spacing,
+              childAspectRatio: childAspectRatio,
+            ),
+            itemCount: _commands.length,
+            itemBuilder: (context, index) {
+              final command = _commands[index];
+              return LiquidStretch(
+                stretch: 0.3,
+                interactionScale: 0.95,
+                child: GestureDetector(
+                  onTap: () => _sendCommand(command),
+                  child: LiquidGlass(
+                    shape: LiquidRoundedSuperellipse(borderRadius: 24),
+                    child: GlassGlow(
+                      glowColor: Colors.white.withValues(alpha: 0.15),
+                      glowRadius: 1.5,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: dense ? 8 : (isPhone ? 10 : 12),
+                          vertical: verticalPadding,
                         ),
-                        SizedBox(height: compact ? 4 : (isPhone ? 10 : 16)),
-                        Text(
-                          command.title,
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: compact ? 11 : (isPhone ? 13 : 14),
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white,
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.05),
+                            width: 1.0,
                           ),
                         ),
-                      ],
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              command.icon,
+                              size: iconSize,
+                              color: Colors.white,
+                            ),
+                            SizedBox(height: textGap),
+                            Text(
+                              command.title,
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: textSize,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
+              );
+            },
           );
         },
       ),
