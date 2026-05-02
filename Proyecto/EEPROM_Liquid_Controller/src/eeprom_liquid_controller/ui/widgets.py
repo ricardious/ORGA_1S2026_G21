@@ -34,6 +34,7 @@ class InteractiveCanvasImage:
         self.hovered = False
         self.pressed = False
         self.selected = False
+        self.enabled = True
         self.images: list[tk.PhotoImage] = []
         self.image_id = canvas.create_image(x, y)
         self.set_asset(asset_name)
@@ -46,12 +47,18 @@ class InteractiveCanvasImage:
         hover_image = pil_to_photoimage(create_hover_image(original))
         press_image = pil_to_photoimage(create_press_image(original))
         selected_image = pil_to_photoimage(create_selected_image(original))
-
         self.images = [normal_image, hover_image, press_image, selected_image]
         self._set_current_image()
 
     def set_selected(self, selected: bool) -> None:
         self.selected = selected
+        self._set_current_image()
+
+    def set_enabled(self, enabled: bool) -> None:
+        self.enabled = enabled
+        if not enabled:
+            self.hovered = False
+            self.pressed = False
         self._set_current_image()
 
     def _bind_events(self) -> None:
@@ -64,7 +71,9 @@ class InteractiveCanvasImage:
         self.canvas.tag_bind(item_id, "<ButtonRelease-1>", self._release)
 
     def _set_current_image(self) -> None:
-        if self.pressed:
+        if not self.enabled:
+            image = self.images[0]
+        elif self.pressed:
             image = self.images[2]
         elif self.selected:
             image = self.images[3]
@@ -75,6 +84,9 @@ class InteractiveCanvasImage:
         self.canvas.itemconfig(self.image_id, image=image)
 
     def _enter(self, _event: tk.Event) -> None:
+        if not self.enabled:
+            self.canvas.config(cursor="")
+            return
         self.hovered = True
         self.canvas.config(cursor="hand2")
         self._set_current_image()
@@ -86,10 +98,14 @@ class InteractiveCanvasImage:
         self._set_current_image()
 
     def _press(self, _event: tk.Event) -> None:
+        if not self.enabled:
+            return
         self.pressed = True
         self._set_current_image()
 
     def _release(self, _event: tk.Event) -> None:
+        if not self.enabled:
+            return
         was_pressed = self.pressed
         self.pressed = False
         self._set_current_image()
