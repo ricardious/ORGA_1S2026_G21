@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from glob import glob
 from os.path import exists
+import re
 from sys import platform
 
 LINUX_PROTEUS_PORTS = ["/tmp/COM_Python"]
@@ -23,7 +24,7 @@ def list_serial_ports() -> list[str]:
     ports = [
         port.device for port in list_ports.comports() if _is_supported_port(port.device)
     ]
-    return sorted(set(ports + _development_ports()))
+    return _sort_ports(set(ports + _development_ports()))
 
 
 def _is_supported_port(device: str) -> bool:
@@ -50,7 +51,20 @@ def _fallback_ports() -> list[str]:
     ports: list[str] = _development_ports()
     for pattern in patterns:
         ports.extend(glob(pattern))
-    return sorted(set(ports))
+    return _sort_ports(set(ports))
+
+
+def _sort_ports(ports: set[str]) -> list[str]:
+    if platform == "win32":
+        return sorted(ports, key=_windows_port_sort_key)
+    return sorted(ports)
+
+
+def _windows_port_sort_key(port: str) -> tuple[int, str]:
+    match = re.fullmatch(r"COM(\d+)", port)
+    if match:
+        return (int(match.group(1)), port)
+    return (10_000, port)
 
 
 def _development_ports() -> list[str]:

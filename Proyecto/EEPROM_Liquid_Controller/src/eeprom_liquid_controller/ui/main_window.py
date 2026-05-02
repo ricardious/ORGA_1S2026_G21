@@ -94,6 +94,7 @@ class MainWindow:
         self._button_refs: list[InteractiveCanvasImage] = []
         self.connection_state = ConnectionState.DISCONNECTED
         self.available_ports: list[str] = []
+        self.known_ports: set[str] = set()
         self.selected_port_index: int | None = None
         self.port_slot_buttons: list[InteractiveCanvasImage] = []
         self.port_slot_text_ids: list[int] = []
@@ -167,15 +168,28 @@ class MainWindow:
 
     def refresh_ports(self) -> None:
         previous_port = self._selected_port()
+        previous_ports = set(self.available_ports)
         self.available_ports = list_serial_ports()
-        if previous_port in self.available_ports:
+        current_ports = set(self.available_ports)
+        new_ports = [
+            port for port in self.available_ports if port in current_ports - previous_ports
+        ]
+
+        if new_ports:
+            self.selected_port_index = self.available_ports.index(new_ports[0])
+        elif previous_port in self.available_ports:
             self.selected_port_index = self.available_ports.index(previous_port)
         elif self.available_ports and self.selected_port_index is None:
             self.selected_port_index = 0
+        elif self.selected_port_index is not None and self.selected_port_index >= len(
+            self.available_ports
+        ):
+            self.selected_port_index = 0 if self.available_ports else None
         if self.available_ports:
             self.connection_state = ConnectionState.READY
         elif self.connection_state != ConnectionState.ERROR:
             self.connection_state = ConnectionState.DISCONNECTED
+        self.known_ports = current_ports
         self._render_connection_panel()
         self.window.after(PORT_REFRESH_MS, self.refresh_ports)
 
