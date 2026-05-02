@@ -113,7 +113,9 @@ Despues de cargar el sketch:
 
 - el LCD debe encender
 - el sistema debe iniciar en estado listo
+- el sketch no precarga escenas por defecto; primero hay que enviar un archivo `.org` valido si se quiere persistencia
 - el monitor serial debe usar `9600` baudios
+- al iniciar debe aparecer `READY` en serial
 
 ## Problemas comunes
 
@@ -139,4 +141,6 @@ Si usas otra placa, ajusta el `--fqbn` y revisa compatibilidad de pines.
 
 ## Nota sobre EEPROM
 
-El sketch usa direcciones fijas por modo. Si se modifica la distribucion de EEPROM en el codigo, debe actualizarse tambien la documentacion del proyecto.
+El sketch usa direcciones fijas por modo y en la version actual solo escribe escenas cuando finaliza correctamente una carga `.org`.
+
+Si se modifica la distribucion de EEPROM o el flujo de inicializacion en el codigo, debe actualizarse tambien la documentacion del proyecto.

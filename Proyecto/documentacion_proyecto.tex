@@ -32,7 +32,7 @@
 
 \title{Documentación Técnica\\Proyecto - Organización Computacional}
 \author{Grupo 21}
-\date{29 de abril de 2026}
+\date{2 de mayo de 2026}
 
 \begin{document}
 
@@ -75,7 +75,7 @@
 \section{Resumen}
 En este proyecto se desarrolló una maqueta de casa inteligente capaz de controlar cinco ambientes de iluminación, un ventilador DC y una puerta automatizada con servomotor. El sistema utiliza un Arduino como unidad central, memoria EEPROM para persistir escenas, una pantalla LCD I2C para retroalimentación local, una aplicación de escritorio para cargar configuraciones \texttt{.org} por USB y una aplicación móvil para activar modos por Bluetooth.
 
-La solución cubre la lógica pedida en el PDF del proyecto: escenas persistentes, control remoto, validación de configuración, retroalimentación visual y documentación técnica del circuito, del flujo de datos y de los activos de software involucrados.
+La solución integra escenas persistentes, control remoto, validación de configuración, retroalimentación visual y documentación técnica del circuito, del flujo de datos y de los componentes de software utilizados.
 
 \section{Marco Formativo}
 
@@ -108,12 +108,12 @@ El repositorio cubre cuatro bloques principales:
 \begin{itemize}[leftmargin=1.2cm]
     \item El sketch de Arduino que implementa persistencia, lectura de comandos, control de LEDs, ventilador, LCD y puerta.
     \item La aplicación de escritorio \texttt{EEPROM\_Liquid\_Controller}, usada para seleccionar y enviar archivos \texttt{.org} por USB.
-    \item La aplicación móvil \texttt{eeprom\_liquid\_remote}, usada para activar modos desde Bluetooth clásico.
+    \item La aplicación móvil, usada para activar modos desde Bluetooth clásico.
     \item Los diagramas y evidencias visuales del montaje y de las interfaces del sistema.
 \end{itemize}
 
 \section{Requisitos Funcionales}
-Con base en el PDF del proyecto, los requisitos funcionales principales atendidos por la solución son los siguientes:
+Los requisitos funcionales principales atendidos por la solución son los siguientes:
 
 \subsection{Control de escenas}
 \begin{itemize}[leftmargin=1.2cm]
@@ -135,7 +135,7 @@ Cada escena se guarda en una dirección fija de EEPROM mediante una estructura c
     \item \texttt{message[33]}
 \end{itemize}
 
-El sistema además precarga modos por defecto si no detecta una configuración válida.
+Las configuraciones persistentes se escriben en EEPROM después de una carga válida desde archivo \texttt{.org}.
 
 \subsection{Carga de configuración desde archivo \texttt{.org}}
 El sketch reconoce el flujo:
@@ -207,7 +207,7 @@ La arquitectura se divide en tres capas operativas:
 \end{table}
 
 \subsection{Unidad central de procesamiento}
-El archivo principal del sistema es \texttt{arduino/eeprom\_liquid\_controller/eeprom\_liquid\_controller.ino}. En él se definen los pines, el protocolo de carga del archivo \texttt{.org}, el mapa de EEPROM, la gestión de escenas y el control de actuadores.
+El sketch principal del sistema define los pines, el protocolo de carga del archivo \texttt{.org}, el mapa de EEPROM, la gestión de escenas y el control de actuadores.
 
 \begin{table}[H]
     \centering
@@ -471,7 +471,7 @@ La vista general ordena el proyecto por módulos. Arriba están los bloques de c
 \end{figure}
 
 \subsection{Unidad central y periféricos}
-La unidad central mostrada en Proteus corresponde al bloque que arranca el sistema. Desde aquí se configuran pines, se habilita la comunicación serial, se conecta el servomotor, se inicializa el LCD y se cargan escenas por defecto si la EEPROM aún no tiene datos válidos.
+La unidad central mostrada en Proteus corresponde al bloque que arranca el sistema. Desde aquí se configuran pines, se habilita la comunicación serial, se conecta el servomotor y se inicializa el LCD. Después del arranque, el sistema queda listo para recibir comandos o una carga de configuración.
 
 \begin{figure}[H]
     \centering
@@ -490,8 +490,6 @@ void setup() {
   lcd.init();
   lcd.backlight();
   setReadyState();
-  seedDefaultScenesIfNeeded();
-  applyMode(MODE_APAGAR_TODO);
 }
         \end{lstlisting}
     \end{minipage}
@@ -648,7 +646,7 @@ La tercera captura corresponde a la fase de transferencia. En ese punto el Ardui
     \caption{Transferencia activa del archivo \texttt{.org}.}
 \end{figure}
 
-La aplicación móvil se muestra en dos pasos porque el flujo real tiene dos fases: primero seleccionar el dispositivo Bluetooth correcto y luego enviar acciones concretas. El sketch solo necesita recibir cadenas como \texttt{modo\_fiesta}, \texttt{modo\_noche} o \texttt{estado}.
+La aplicación móvil se muestra en dos pasos: primero la selección del dispositivo Bluetooth y luego el envío de comandos.
 
 \begin{figure}[H]
     \centering
@@ -660,6 +658,33 @@ La aplicación móvil se muestra en dos pasos porque el flujo real tiene dos fas
     \centering
     \includegraphics[width=0.42\textwidth]{assets/app_movil_dispositivos_bluetooth.jpeg}
     \caption{Pantalla de dispositivos Bluetooth de la aplicación móvil.}
+\end{figure}
+
+\subsection{Evidencia física}
+Las siguientes fotografías muestran el montaje físico, el cableado de integración y la maqueta durante las pruebas.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{assets/maqueta_funcionando_con_puerta.jpeg}
+    \caption{Maqueta física en funcionamiento con iluminación activa y mecanismo de puerta en prueba.}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{assets/montaje_general_protoboard_lcd.jpeg}
+    \caption{Montaje general con Arduino, protoboard de control y LCD I2C conectados.}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{assets/cableado_lateral_maqueta_arduino.jpeg}
+    \caption{Vista lateral del cableado entre la maqueta, el Arduino y el módulo LCD.}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.65\textwidth]{assets/detalle_arduino_uno_r3.jpeg}
+    \caption{Acercamiento a la zona de conexiones y pruebas del Arduino Uno R3 durante el montaje del sistema.}
 \end{figure}
 
 \section{Fragmentos clave del código Arduino}
@@ -695,26 +720,28 @@ void applyMode(byte mode) {
     \caption{Rutina principal de aplicación de una escena almacenada.}
 \end{figure}
 
-\subsection{Escenas por defecto}
-El proyecto no depende exclusivamente de una carga manual inicial. Si la EEPROM todavía no contiene una configuración válida, el Arduino crea escenas base para que la maqueta pueda arrancar operativa.
+\subsection{Persistencia de escenas}
+La escritura en EEPROM se realiza al finalizar correctamente la carga de una configuración. Después de eso, los modos quedan disponibles para su activación por comando.
 
 \begin{figure}[H]
     \centering
     \begin{minipage}{0.9\textwidth}
         \begin{lstlisting}[basicstyle=\ttfamily\footnotesize]
-void seedDefaultScenesIfNeeded() {
-  SceneConfig first = readSceneFromEeprom(MODE_APAGAR_TODO);
-  if (first.magic == EEPROM_MAGIC) return;
+void finishUpload() {
+  if (!commitCurrentUploadMode()) {
+    failUpload("modo incompleto");
+    return;
+  }
 
-  writeDefaultScene(MODE_FIESTA, FAN_ON, LEDS_ALTERNATING, "Modo: FIESTA.");
-  writeDefaultScene(MODE_RELAJADO, FAN_OFF, LEDS_ON, "Modo: RELAJADO.");
-  writeDefaultScene(MODE_NOCHE, FAN_OFF, LEDS_OFF, "Modo: NOCHE.");
-  writeDefaultScene(MODE_ENCENDER_TODO, FAN_ON, LEDS_ON, "Modo: TODO ON.");
-  writeDefaultScene(MODE_APAGAR_TODO, FAN_OFF, LEDS_OFF, "Modo: TODO OFF.");
+  for (byte i = 0; i < MODE_COUNT; i++) {
+    if (pendingScenes[i].touched) {
+      writeSceneToEeprom(i, pendingScenes[i]);
+    }
+  }
 }
         \end{lstlisting}
     \end{minipage}
-    \caption{Inicialización automática de escenas por defecto.}
+    \caption{Persistencia de escenas únicamente después de una carga válida.}
 \end{figure}
 
 \subsection{Comandos operativos}
@@ -780,7 +807,7 @@ if (command == "cerrar_puerta") {
 \end{table}
 
 \section{Presupuesto}
-El PDF exige presupuesto estimado y fotos de respaldo. En este repositorio no se encontró factura ni tabla de costos final, por lo que se deja la estructura lista para completar con los precios reales del equipo.
+La tabla siguiente resume los componentes con precio registrado y marca como disponible el material que ya formaba parte del montaje.
 
 \begin{table}[H]
     \centering
@@ -789,36 +816,37 @@ El PDF exige presupuesto estimado y fotos de respaldo. En este repositorio no se
         \toprule
         \textbf{Componente} & \textbf{Cantidad} & \textbf{Costo unitario} & \textbf{Subtotal} \\
         \midrule
-        Arduino Uno o compatible & Pendiente & Pendiente & Pendiente \\
-        HC-06 & Pendiente & Pendiente & Pendiente \\
-        LCD I2C 16x2 & Pendiente & Pendiente & Pendiente \\
-        Servomotor & Pendiente & Pendiente & Pendiente \\
-        Motor DC & Pendiente & Pendiente & Pendiente \\
-        LEDs y resistencias & Pendiente & Pendiente & Pendiente \\
-        Material de maqueta & Pendiente & Pendiente & Pendiente \\
-        Cableado y fuente & Pendiente & Pendiente & Pendiente \\
+        Arduino Uno o compatible & Disponible & Disponible & Disponible \\
+        Módulo Bluetooth HC-06 (3.6V--6V) & 1 & Q110.00 & Q110.00 \\
+        LCD 16x2 verde + módulo I2C & 1 & Q50.00 & Q50.00 \\
+        Servomotor 5G90 180 grados 5VDC & 1 & Q30.00 & Q30.00 \\
+        Motor DC & Disponible & Disponible & Disponible \\
+        LED amarillo & 5 & Q1.00 & Q5.00 \\
+        LED rojo & 1 & Q1.00 & Q1.00 \\
+        LED verde & 1 & Q1.00 & Q1.00 \\
+        LED azul & 1 & Q1.00 & Q1.00 \\
+        Resistencias & Disponible & Disponible & Disponible \\
+        Material de maqueta & Disponible & Disponible & Disponible \\
+        Cableado y fuente & Disponible & Disponible & Disponible \\
         \midrule
-        \textbf{Total} &  &  & \textbf{Pendiente} \\
+        \textbf{Total parcial confirmado} &  &  & \textbf{Q198.00} \\
         \bottomrule
     \end{tabular}
 \end{table}
 
-\section{Resultados y observaciones}
+\section{Observaciones}
 \begin{itemize}[leftmargin=1.2cm]
-    \item El sketch ya define almacenamiento persistente para cinco modos con direccionamiento fijo.
-    \item La app de escritorio ya cubre selección de puerto, vista previa y envío serial.
-    \item La app móvil ya contempla conexión Bluetooth, envío de comandos y retroalimentación visual.
-    \item El uso de \texttt{millis()} para el patrón alternado evita bloquear el ciclo principal del Arduino.
-    \item Existe una discrepancia entre el PDF y el sketch actual: el PDF describe \texttt{modo\_relajado} con LEDs apagados, pero el código lo inicializa con LEDs encendidos.
-    \item En la app de escritorio existe un parser \texttt{.org} reservado, pero aún está marcado como \texttt{NotImplementedError}; la validación real la hace actualmente el Arduino.
+    \item El sistema maneja cinco modos guardados en EEPROM con direcciones fijas.
+    \item La carga de configuración se hace desde archivos \texttt{.org} enviados por serial.
+    \item La aplicación de escritorio se usa para transferir la configuración y la aplicación móvil para enviar comandos por Bluetooth.
+    \item La documentación incluye evidencias del montaje físico.
 \end{itemize}
 
 \section{Conclusiones}
 \begin{itemize}[leftmargin=1.2cm]
-    \item La solución cumple con la arquitectura general pedida en el proyecto: configuración externa, persistencia en EEPROM, control remoto y retroalimentación local.
-    \item La separación entre Arduino, app de escritorio y app móvil facilita mantenimiento, pruebas y demostración del flujo completo.
-    \item El mapa fijo de EEPROM y el formato \texttt{.org} documentado reducen ambigüedades para futuras pruebas o ampliaciones.
-    \item Para cerrar completamente la entrega solo faltaría consolidar la evidencia física final de la maqueta y completar el presupuesto real.
+    \item El proyecto integra configuración externa, persistencia en EEPROM, control remoto y visualización local en un solo sistema.
+    \item La separación entre Arduino, aplicación de escritorio y aplicación móvil ordena mejor el funcionamiento del proyecto.
+    \item La documentación reúne el circuito, el código y las evidencias del montaje.
 \end{itemize}
 
 \section{Anexos}
@@ -830,13 +858,6 @@ El PDF exige presupuesto estimado y fotos de respaldo. En este repositorio no se
     \item Proyecto Proteus y export del esquema.
     \item Ejemplo de archivo \texttt{.org}.
     \item Capturas de la app de escritorio y de la app móvil.
-\end{itemize}
-
-\subsection{Pendientes para cierre final}
-\begin{itemize}[leftmargin=1.2cm]
-    \item Agregar fotos de la maqueta física terminada y del equipo durante el desarrollo.
-    \item Completar la tabla de presupuesto con costos reales o factura.
-    \item Si se requiere entrega final en PDF, compilar este archivo y revisar saltos de página y tamaño de imágenes.
 \end{itemize}
 
 \end{document}

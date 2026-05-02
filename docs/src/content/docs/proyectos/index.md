@@ -1,16 +1,21 @@
 ---
 title: Proyectos
-description: Índice general de proyectos del curso y lineamientos de documentación.
+description: Índice general de proyectos del curso y acceso a la documentación publicada.
 ---
 
 # Proyectos
 
-Esta sección centraliza la documentación de proyectos integradores del curso.
+Esta sección centraliza la documentación de los proyectos integradores del curso.
 
 ## Estado actual
 
-- Proyectos asignados: ninguno por el momento.
-- Esta sección se actualizará cuando se publique el primer proyecto.
+- Proyecto publicado: [Casa inteligente con control de ambientes y ventilador automatizado](/proyectos/casa-inteligente/).
+- La documentación ya incorpora evidencia física reciente del montaje.
+- El firmware Arduino fue revisado y la redacción quedó alineada con su comportamiento actual.
+
+## Proyecto disponible
+
+- [Casa inteligente con control de ambientes y ventilador automatizado](/proyectos/casa-inteligente/)
 
 ## Lineamientos
 
@@ -20,9 +25,8 @@ Esta sección centraliza la documentación de proyectos integradores del curso.
 
 ## Entregables y evidencias
 
-- Documento técnico: `proyectos/proyecto-N/docs-pdf/`
-- Simulación: `proyectos/proyecto-N/simulacion/`
-- Montaje y pruebas: `proyectos/proyecto-N/montaje/`
-- Diagramas y esquemas: `proyectos/proyecto-N/diagramas/`
-- Diseño PCB: `proyectos/proyecto-N/pcb/`
-- Presupuesto: `proyectos/proyecto-N/presupuesto/`
+- Documento técnico compilable: `Proyecto/documentacion_proyecto.tex`
+- Simulación y esquema: `Proyecto/G21_S1_2026_Proyecto.pdsprj`
+- Firmware Arduino: `Proyecto/arduino/eeprom_liquid_controller/eeprom_liquid_controller.ino`
+- App de escritorio: `Proyecto/EEPROM_Liquid_Controller/`
+- App móvil: `Proyecto/eeprom_liquid_remote/`
