@@ -106,9 +106,6 @@ void setup() {
   lcd.init();
   lcd.backlight();
   setReadyState();
-
-  seedDefaultScenesIfNeeded();
-  applyMode(MODE_APAGAR_TODO);
 }
 
 void loop() {
@@ -339,7 +336,7 @@ void applyMode(byte mode) {
   if (scene.magic != EEPROM_MAGIC) {
     systemError = true;
     digitalWrite(led_rojo, HIGH);
-    showLcd("Modo sin config", modeName(mode));
+    showLcd("Error", "Modo invalido");
     Serial.println("MODE_ERROR");
     return;
   }
@@ -453,30 +450,6 @@ int eepromAddress(byte mode) {
     return -1;
   }
   return MODE_EEPROM_ADDRESS[mode];
-}
-
-void seedDefaultScenesIfNeeded() {
-  SceneConfig first = readSceneFromEeprom(MODE_APAGAR_TODO);
-  if (first.magic == EEPROM_MAGIC) {
-    return;
-  }
-
-  writeDefaultScene(MODE_FIESTA, FAN_ON, LEDS_ALTERNATING, "Modo: FIESTA.");
-  writeDefaultScene(MODE_RELAJADO, FAN_OFF, LEDS_ON, "Modo: RELAJADO.");
-  writeDefaultScene(MODE_NOCHE, FAN_OFF, LEDS_OFF, "Modo: NOCHE.");
-  writeDefaultScene(MODE_ENCENDER_TODO, FAN_ON, LEDS_ON, "Modo: TODO ON.");
-  writeDefaultScene(MODE_APAGAR_TODO, FAN_OFF, LEDS_OFF, "Modo: TODO OFF.");
-}
-
-void writeDefaultScene(byte mode, byte fan, byte ledPattern, const char *message) {
-  PendingScene scene;
-  scene.touched = true;
-  scene.fanSet = true;
-  scene.ledsSet = true;
-  scene.fan = fan;
-  scene.ledPattern = ledPattern;
-  copyMessage(String(message), scene.message);
-  writeSceneToEeprom(mode, scene);
 }
 
 void resetPendingScenes() {
