@@ -12,10 +12,10 @@ class SerialConfig:
     port: str
     baudrate: int = 9600
     timeout: float = 2.0
-    reset_delay: float = 2.0
-    response_timeout: float = 30.0
+    reset_delay: float = 3.0
+    response_timeout: float = 60.0
     chunk_size: int = 16
-    chunk_delay: float = 0.03
+    chunk_delay: float = 0.1
 
 
 class SerialSendError(RuntimeError):
@@ -62,9 +62,16 @@ class ArduinoSerialClient:
                     log_callback(
                         f"TX open {self.config.port} @ {self.config.baudrate} baud"
                     )
+                    log_callback(f"TX timeout serial: {self.config.timeout}s")
+                    log_callback(f"TX delay de reset: {self.config.reset_delay}s")
+                    log_callback(
+                        f"TX timeout de respuesta: {self.config.response_timeout}s"
+                    )
+                    log_callback(f"TX total de lineas: {len(encoded_lines)}")
                 sleep(self.config.reset_delay)
                 connection.reset_input_buffer()
                 connection.reset_output_buffer()
+                sleep(0.5)
                 if log_callback is not None:
                     log_callback("TX buffers limpiados, iniciando envio")
 
@@ -102,6 +109,9 @@ class ArduinoSerialClient:
         while monotonic() < deadline:
             raw_line = connection.readline()
             if not raw_line:
+                if log_callback is not None:
+                    remaining = max(0, int(deadline - monotonic()))
+                    log_callback(f"WAIT sin respuesta aun... ({remaining}s restantes)")
                 continue
 
             line = raw_line.decode("utf-8", errors="replace").strip()
