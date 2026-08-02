@@ -7,8 +7,14 @@ const githubPagesSite = "https://ricardious.github.io";
 const githubPagesBase = "/ORGA_1S2026_G21";
 
 function prefixBaseForRootRelativeUrls(base) {
+  function withBase(value) {
+    if (!value.startsWith("/") || value.startsWith("//")) return value;
+    if (value === base || value.startsWith(`${base}/`)) return value;
+    return value === "/" ? `${base}/` : `${base}${value}`;
+  }
+
   /**
-   * @param {import('hast').Root | import('hast').Element} node
+   * @param {any} node
    */
   function visit(node) {
     if ("children" in node && Array.isArray(node.children)) {
@@ -19,14 +25,31 @@ function prefixBaseForRootRelativeUrls(base) {
       }
     }
 
+    if (
+      (node.type === "raw" || node.type === "html") &&
+      typeof node.value === "string"
+    ) {
+      node.value = node.value.replace(
+        /(\b(?:href|src)=["'])(\/[^"']*)/g,
+        (_match, prefix, value) => `${prefix}${withBase(value)}`,
+      );
+    }
+
+    if (Array.isArray(node.attributes)) {
+      for (const attribute of node.attributes) {
+        if (attribute?.type !== "mdxJsxAttribute") continue;
+        if (attribute.name !== "href" && attribute.name !== "src") continue;
+        if (typeof attribute.value !== "string") continue;
+        attribute.value = withBase(attribute.value);
+      }
+    }
+
     if (node.type !== "element" || !node.properties) return;
 
     for (const attribute of ["href", "src"]) {
       const value = node.properties[attribute];
       if (typeof value !== "string") continue;
-      if (!value.startsWith("/") || value.startsWith("//")) continue;
-      if (value === base || value.startsWith(`${base}/`)) continue;
-      node.properties[attribute] = value === "/" ? `${base}/` : `${base}${value}`;
+      node.properties[attribute] = withBase(value);
     }
   }
 
@@ -42,6 +65,7 @@ export default defineConfig({
   site: githubPagesSite,
   base: githubPagesBase,
   markdown: {
+    remarkPlugins: [prefixBaseForRootRelativeUrls(githubPagesBase)],
     rehypePlugins: [prefixBaseForRootRelativeUrls(githubPagesBase)],
   },
   integrations: [
