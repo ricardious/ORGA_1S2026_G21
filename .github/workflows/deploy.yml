@@ -28,7 +28,7 @@ jobs:
         uses: withastro/action@v6
         with:
           path: docs
-          package-manager: pnpm@10.18.2
+          package-manager: pnpm@latest
           node-version: 22
           build-cmd: pnpm run build
 
