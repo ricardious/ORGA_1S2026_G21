@@ -43,50 +43,52 @@ void loop() {
     delay(50); // filtro de rebote
 
     if (digitalRead(PIN_AUTH) == HIGH) {
-      bool cycleAborted = false;
+      while (digitalRead(PIN_AUTH) == HIGH) {
+        bool cycleAborted = false;
 
-      // --- secuencia de avance: 15 segundos ---
-      digitalWrite(PIN_H1, HIGH);
-      digitalWrite(PIN_H2, LOW);
+        // --- secuencia de avance: 15 segundos ---
+        digitalWrite(PIN_H1, HIGH);
+        digitalWrite(PIN_H2, LOW);
 
-      for (int t = 0; t < 15 && !cycleAborted; t++) {
-        if (digitalRead(PIN_AUTH) == LOW) {
-          haltSystem();
-          resetCounter(PIN_CLK_UP, 14 - t); // regresa el contador a cero
-          cycleAborted = true;
-        } else {
-          sendClockCycles(PIN_CLK_UP, 1, 500);
-        }
-      }
-
-      // --- secuencia de retorno: 10 segundos ---
-      if (!cycleAborted) {
-        digitalWrite(PIN_H1, LOW);
-        digitalWrite(PIN_H2, HIGH);
-
-        for (int t = 0; t < 10 && !cycleAborted; t++) {
+        for (int t = 0; t < 15 && !cycleAborted; t++) {
           if (digitalRead(PIN_AUTH) == LOW) {
             haltSystem();
-            resetCounter(PIN_CLK_DOWN, 9 - t); // regresa el contador a cero
-            resetCounter(PIN_CLK_DOWN, 1);      // pulso de cierre de ciclo
+            resetCounter(PIN_CLK_UP, 14 - t); // regresa el contador a cero
             cycleAborted = true;
           } else {
-            sendClockCycles(PIN_CLK_DOWN, 1, 500);
+            sendClockCycles(PIN_CLK_UP, 1, 500);
           }
+        }
+
+        // --- secuencia de retorno: 10 segundos ---
+        if (!cycleAborted) {
+          digitalWrite(PIN_H1, LOW);
+          digitalWrite(PIN_H2, HIGH);
+
+          for (int t = 0; t < 10 && !cycleAborted; t++) {
+            if (digitalRead(PIN_AUTH) == LOW) {
+              haltSystem();
+              resetCounter(PIN_CLK_DOWN, 9 - t); // regresa el contador a cero
+              resetCounter(PIN_CLK_DOWN, 1);      // pulso de cierre de ciclo
+              cycleAborted = true;
+            } else {
+              sendClockCycles(PIN_CLK_DOWN, 1, 500);
+            }
+          }
+        }
+
+        if (!cycleAborted) {
+          // pulso de cierre de ciclo antes de reiniciar la secuencia
+          sendClockCycles(PIN_CLK_DOWN, 1, 5);
+          haltSystem();
+          delay(1000);  // estabilización después de frenar
+        }
+
+        if (cycleAborted) {
+          break;
         }
       }
 
-      if (!cycleAborted) {
-        // pulso de cierre de ciclo
-        sendClockCycles(PIN_CLK_DOWN, 1, 5);
-        haltSystem();
-        delay(1000);  // estabilización después de frenar
-      }
-
-      // esperando flanco de bajada de la señal
-      while (digitalRead(PIN_AUTH) == HIGH) {
-        delay(10);
-      }
       delay(200); // margen de debounce al soltar
     }
   } else {

@@ -48,6 +48,19 @@ TERMINAL_LINES = [
     "> Sistema de carga listo.",
     "> Seleccione un puerto y cargue un archivo .org.",
 ]
+PORT_LEFT_ARROW_POS = (299, 101)
+PORT_SLOT_POSITIONS = [
+    (339, 101),
+    (403, 101),
+    (467, 101),
+]
+PORT_RIGHT_ARROW_POS = (506, 101)
+PORT_TEXT_POSITIONS = [
+    (323, 94),
+    (387, 94),
+    (450, 94),
+]
+PORT_TEXT_WIDTH = 50
 DEFAULT_ORG_PREVIEW = """// Configuracion de modos para el sistema de control
 conf_ini
 
@@ -94,9 +107,13 @@ class MainWindow:
         self._button_refs: list[InteractiveCanvasImage] = []
         self.connection_state = ConnectionState.DISCONNECTED
         self.available_ports: list[str] = []
+        self.known_ports: set[str] = set()
         self.selected_port_index: int | None = None
+        self.port_view_start = 0
         self.port_slot_buttons: list[InteractiveCanvasImage] = []
         self.port_slot_text_ids: list[int] = []
+        self.port_prev_button: InteractiveCanvasImage | None = None
+        self.port_next_button: InteractiveCanvasImage | None = None
         self.empty_ports_text_id: int | None = None
         self.connection_status_text_id: int | None = None
         self.connection_button: InteractiveCanvasImage | None = None
@@ -167,15 +184,28 @@ class MainWindow:
 
     def refresh_ports(self) -> None:
         previous_port = self._selected_port()
+        previous_ports = set(self.available_ports)
         self.available_ports = list_serial_ports()
-        if previous_port in self.available_ports:
+        current_ports = set(self.available_ports)
+        new_ports = [
+            port for port in self.available_ports if port in current_ports - previous_ports
+        ]
+
+        if new_ports:
+            self.selected_port_index = self.available_ports.index(new_ports[0])
+        elif previous_port in self.available_ports:
             self.selected_port_index = self.available_ports.index(previous_port)
         elif self.available_ports and self.selected_port_index is None:
             self.selected_port_index = 0
+        elif self.selected_port_index is not None and self.selected_port_index >= len(
+            self.available_ports
+        ):
+            self.selected_port_index = 0 if self.available_ports else None
         if self.available_ports:
             self.connection_state = ConnectionState.READY
         elif self.connection_state != ConnectionState.ERROR:
             self.connection_state = ConnectionState.DISCONNECTED
+        self.known_ports = current_ports
         self._render_connection_panel()
         self.window.after(PORT_REFRESH_MS, self.refresh_ports)
 
@@ -203,6 +233,7 @@ class MainWindow:
     def _render_available_ports(self) -> None:
         if not self.available_ports:
             self.selected_port_index = None
+            self.port_view_start = 0
             self.canvas.itemconfig(
                 self.empty_ports_text_id,
                 text="No se encontraron\npuertos",
@@ -216,14 +247,17 @@ class MainWindow:
                 button.set_selected(False)
                 self.canvas.itemconfig(button.image_id, state="hidden")
                 self.canvas.itemconfig(text_id, state="hidden")
+            self._update_port_navigation()
             return
 
         self.canvas.itemconfig(self.empty_ports_text_id, state="hidden")
-        visible_ports = self.available_ports[:3]
         if self.selected_port_index is None or self.selected_port_index >= len(
-            visible_ports
+            self.available_ports
         ):
             self.selected_port_index = 0
+        self._ensure_selected_port_visible()
+
+        visible_ports = self.available_ports[self.port_view_start : self.port_view_start + 3]
 
         for index, (button, text_id) in enumerate(
             zip(
@@ -238,7 +272,8 @@ class MainWindow:
                 self.canvas.itemconfig(text_id, state="hidden")
                 continue
 
-            is_selected = index == self.selected_port_index
+            actual_index = self.port_view_start + index
+            is_selected = actual_index == self.selected_port_index
             button.set_selected(is_selected)
             self.canvas.itemconfig(button.image_id, state="normal")
             self.canvas.itemconfig(
@@ -247,19 +282,75 @@ class MainWindow:
                 state="normal",
                 fill="#c77dff" if is_selected else "#ffffff",
             )
+        self._update_port_navigation()
 
     def select_port(self, index: int) -> None:
-        if index >= len(self.available_ports[:3]):
+        actual_index = self.port_view_start + index
+        if actual_index >= len(self.available_ports):
             return
-        self.selected_port_index = index
+        self.selected_port_index = actual_index
         self._render_connection_panel()
         self.update_summary()
 
+    def show_previous_ports(self) -> None:
+        if self.port_view_start <= 0:
+            return
+        self.port_view_start = max(0, self.port_view_start - 1)
+        self._sync_selection_to_visible_ports()
+        self._render_connection_panel()
+
+    def show_next_ports(self) -> None:
+        max_start = max(0, len(self.available_ports) - 3)
+        if self.port_view_start >= max_start:
+            return
+        self.port_view_start = min(max_start, self.port_view_start + 1)
+        self._sync_selection_to_visible_ports()
+        self._render_connection_panel()
+
+    def _ensure_selected_port_visible(self) -> None:
+        if self.selected_port_index is None:
+            return
+        max_start = max(0, len(self.available_ports) - 3)
+        if self.selected_port_index < self.port_view_start:
+            self.port_view_start = self.selected_port_index
+        elif self.selected_port_index >= self.port_view_start + 3:
+            self.port_view_start = self.selected_port_index - 2
+        self.port_view_start = min(max(0, self.port_view_start), max_start)
+
+    def _sync_selection_to_visible_ports(self) -> None:
+        if not self.available_ports:
+            self.selected_port_index = None
+            return
+        visible_end = self.port_view_start + 3
+        if self.selected_port_index is None:
+            self.selected_port_index = self.port_view_start
+            return
+        if not (self.port_view_start <= self.selected_port_index < visible_end):
+            self.selected_port_index = self.port_view_start
+
+    def _update_port_navigation(self) -> None:
+        if self.port_prev_button is None or self.port_next_button is None:
+            return
+        has_multiple_pages = len(self.available_ports) > 3
+        left_enabled = has_multiple_pages and self.port_view_start > 0
+        max_start = max(0, len(self.available_ports) - 3)
+        right_enabled = has_multiple_pages and self.port_view_start < max_start
+        self.canvas.itemconfig(
+            self.port_prev_button.image_id,
+            state="normal" if has_multiple_pages else "hidden",
+        )
+        self.canvas.itemconfig(
+            self.port_next_button.image_id,
+            state="normal" if has_multiple_pages else "hidden",
+        )
+        self.port_prev_button.set_enabled(left_enabled)
+        self.port_next_button.set_enabled(right_enabled)
+
     def _fit_port_label(self, port: str) -> str:
         label = port.rsplit("/", maxsplit=1)[-1]
-        if len(label) <= 8:
+        if len(label) <= 6:
             return label
-        return f"{label[:3]}...{label[-2:]}"
+        return f"{label[:2]}...{label[-1:]}"
 
     def _connection_status_label(self) -> str:
         if self.connection_state == ConnectionState.READY:
@@ -390,12 +481,19 @@ class MainWindow:
             self.canvas.itemconfig(text_id, text=text)
 
     def _build_port_slots(self) -> None:
-        slots = [
-            (330, 101, "port_slot_left.png"),
-            (403, 101, "port_slot_center.png"),
-            (476, 101, "port_slot_right.png"),
-        ]
-        for index, (x, y, asset_name) in enumerate(slots):
+        self.port_prev_button = make_interactive_canvas_image(
+            self.canvas,
+            PORT_LEFT_ARROW_POS[0],
+            PORT_LEFT_ARROW_POS[1],
+            "4.png",
+            command=self.show_previous_ports,
+        )
+        self._button_refs.append(self.port_prev_button)
+
+        slots = ["5.png", "6.png", "7.png"]
+        for index, ((x, y), (text_x, text_y), asset_name) in enumerate(
+            zip(PORT_SLOT_POSITIONS, PORT_TEXT_POSITIONS, slots, strict=True)
+        ):
             button = make_interactive_canvas_image(
                 self.canvas,
                 x,
@@ -404,13 +502,13 @@ class MainWindow:
                 command=lambda slot_index=index: self.select_port(slot_index),
             )
             text_id = self.canvas.create_text(
-                x,
-                y,
-                anchor="center",
+                text_x,
+                text_y,
+                anchor="nw",
                 text="",
                 fill="#ffffff",
                 justify="center",
-                width=62,
+                width=PORT_TEXT_WIDTH,
                 font=("Inter", 10 * -1),
             )
             self.canvas.tag_raise(button.image_id)
@@ -419,6 +517,15 @@ class MainWindow:
             self._button_refs.append(button)
             self.port_slot_buttons.append(button)
             self.port_slot_text_ids.append(text_id)
+
+        self.port_next_button = make_interactive_canvas_image(
+            self.canvas,
+            PORT_RIGHT_ARROW_POS[0],
+            PORT_RIGHT_ARROW_POS[1],
+            "3.png",
+            command=self.show_next_ports,
+        )
+        self._button_refs.append(self.port_next_button)
 
         self.empty_ports_text_id = self.canvas.create_text(
             403,
