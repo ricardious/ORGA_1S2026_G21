@@ -3,6 +3,8 @@ title: "Práctica 2: Lógica Binaria y Combinacional (LogicCalc)"
 description: Diseño e implementación de una ALU combinacional de 4 bits con operaciones aritméticas, lógicas y comparativas, documentada con evidencias de simulación y montaje.
 ---
 
+import Figure from '../../../../components/Figure.astro';
+
 ## Resumen
 
 La práctica 2 consistió en diseñar e implementar **LogicCalc**, una calculadora binaria basada en lógica combinacional que modela una **Unidad Aritmética Lógica (ALU)** elemental.  
@@ -125,7 +127,7 @@ Los operandos se ingresan con bancos de DIP switches de 4 posiciones. Cada combi
 | 1110 | 14 |
 | 1111 | 15 |
 
-<img src="/media/practicas/practica-2/bloques/numeros_A_B.png" alt="Configuración de operandos A y B con DIP switches en Proteus" />
+<Figure src="practicas/practica-2/bloques/numeros_A_B.png" alt="Configuración de operandos A y B con DIP switches en Proteus" />
 
 La elección de DIP switches permitió:
 
@@ -210,7 +212,7 @@ La salida del controlador no solo determina qué operación está activa, sino t
 
 Aunque el controlador parece un bloque pequeño respecto al resto del sistema, en la práctica es uno de los más importantes. Un error en la decodificación del selector afecta simultáneamente a todos los módulos, por lo que se tomó como referencia central para revisar el mapeo correcto de operaciones durante la documentación.
 
-<img src="/media/practicas/practica-2/bloques/controlador_principal.png" alt="Controlador principal de LogicCalc implementado en Proteus" />
+<Figure src="practicas/practica-2/bloques/controlador_principal.png" alt="Controlador principal de LogicCalc implementado en Proteus" />
 
 ### Unidad aritmética
 
@@ -268,22 +270,22 @@ La suma y la resta se resolvieron con una estructura de sumadores completos. Par
 ##### Etapa 0
 Corresponde al bit menos significativo y establece la base para el acarreo inicial del sistema.
 
-<img src="/media/practicas/practica-2/bloques/suma_resta_p1.png" alt="Etapa 0 del bloque de suma y resta" />
+<Figure src="practicas/practica-2/bloques/suma_resta_p1.png" alt="Etapa 0 del bloque de suma y resta" />
 
 ##### Etapa 1
 Propaga el acarreo desde la primera etapa y conserva el mismo patrón estructural del sumador completo.
 
-<img src="/media/practicas/practica-2/bloques/suma_resta_p2.png" alt="Etapa 1 del bloque de suma y resta" />
+<Figure src="practicas/practica-2/bloques/suma_resta_p2.png" alt="Etapa 1 del bloque de suma y resta" />
 
 ##### Etapa 2
 Mantiene la acumulación de acarreo y consolida la lógica de los bits intermedios.
 
-<img src="/media/practicas/practica-2/bloques/suma_resta_p3.png" alt="Etapa 2 del bloque de suma y resta" />
+<Figure src="practicas/practica-2/bloques/suma_resta_p3.png" alt="Etapa 2 del bloque de suma y resta" />
 
 ##### Etapa final
 Resuelve el bit más significativo y genera la señal asociada al signo en operaciones de resta.
 
-<img src="/media/practicas/practica-2/bloques/suma_resta_p4.png" alt="Etapa final del bloque de suma y resta con manejo de signo" />
+<Figure src="practicas/practica-2/bloques/suma_resta_p4.png" alt="Etapa final del bloque de suma y resta con manejo de signo" />
 
 #### Multiplicación
 
@@ -314,7 +316,7 @@ En vez de resolver la multiplicación con una caja negra o con un componente ded
 
 Eso hace que el bloque sea más largo, pero también más transparente desde el punto de vista académico.
 
-<img src="/media/practicas/practica-2/bloques/multiplicacion.png" alt="Bloque de multiplicación binaria implementado en Proteus" />
+<Figure src="practicas/practica-2/bloques/multiplicacion.png" alt="Bloque de multiplicación binaria implementado en Proteus" />
 
 #### Potencia
 
@@ -342,8 +344,8 @@ Este bloque reutiliza estructuras semejantes a las de multiplicación, pero su s
 
 Esto convierte al bloque de potencia en una operación especial dentro de LogicCalc, porque depende no solo de la selección general sino también del valor explícito del operando `B`.
 
-<img src="/media/practicas/practica-2/bloques/potencia.png" alt="Bloque de potencia para cuadrado y cubo" />
-<img src="/media/practicas/practica-2/bloques/potencia_salidas.png" alt="Selección de salidas del bloque de potencia" />
+<Figure src="practicas/practica-2/bloques/potencia.png" alt="Bloque de potencia para cuadrado y cubo" />
+<Figure src="practicas/practica-2/bloques/potencia_salidas.png" alt="Selección de salidas del bloque de potencia" />
 
 ### Unidad lógica
 
@@ -370,7 +372,7 @@ El uso de LEDs como salida directa de la unidad lógica permitió validar rápid
 La unidad lógica fue la más inmediata de validar, porque cada bit puede interpretarse visualmente sin necesidad de decodificación adicional.  
 Esto permitió comprobar la correspondencia exacta entre la tabla de verdad y la salida observada en LEDs.
 
-<img src="/media/practicas/practica-2/bloques/unidad_logica.png" alt="Unidad lógica con operaciones AND, OR, NAND y XNOR" />
+<Figure src="practicas/practica-2/bloques/unidad_logica.png" alt="Unidad lógica con operaciones AND, OR, NAND y XNOR" />
 
 ### Unidad comparativa
 
@@ -392,7 +394,7 @@ La unidad comparativa es importante porque desacopla la comparación del resto d
 
 Esta lógica permitió probar el comparador de forma independiente del bloque suma/resta.
 
-<img src="/media/practicas/practica-2/bloques/unidad_comparativa.png" alt="Unidad comparativa para mostrar el mayor y el menor" />
+<Figure src="practicas/practica-2/bloques/unidad_comparativa.png" alt="Unidad comparativa para mostrar el mayor y el menor" />
 
 ### Conversión binario a BCD
 
@@ -423,14 +425,14 @@ Por eso el bloque de conversión tuvo que resolver:
 - manejo de bits de acarreo,
 - y preparación del valor final para ser interpretado por decodificadores de display.
 
-<img src="/media/practicas/practica-2/bloques/binario_bcd_vista_general.png" alt="Vista general del conversor binario a BCD" />
-<img src="/media/practicas/practica-2/bloques/binario_bcd_p1.png" alt="Primera etapa del conversor binario a BCD" />
-<img src="/media/practicas/practica-2/bloques/binario_bcd_p2.png" alt="Filtrado y enrutamiento de líneas por operación activa" />
-<img src="/media/practicas/practica-2/bloques/binario_bcd_p3.png" alt="Acondicionamiento de líneas para la resta" />
-<img src="/media/practicas/practica-2/bloques/binario_bcd_p4.png" alt="Combinación entre resultados de suma y resta" />
-<img src="/media/practicas/practica-2/bloques/binario_bcd_p5.png" alt="Combinación entre multiplicación y suma resta" />
-<img src="/media/practicas/practica-2/bloques/binario_bcd_p6.png" alt="Banco de LEDs de prueba para salidas intermedias" />
-<img src="/media/practicas/practica-2/bloques/binario_bcd_p7.png" alt="Etapa final del conversor binario a BCD" />
+<Figure src="practicas/practica-2/bloques/binario_bcd_vista_general.png" alt="Vista general del conversor binario a BCD" />
+<Figure src="practicas/practica-2/bloques/binario_bcd_p1.png" alt="Primera etapa del conversor binario a BCD" />
+<Figure src="practicas/practica-2/bloques/binario_bcd_p2.png" alt="Filtrado y enrutamiento de líneas por operación activa" />
+<Figure src="practicas/practica-2/bloques/binario_bcd_p3.png" alt="Acondicionamiento de líneas para la resta" />
+<Figure src="practicas/practica-2/bloques/binario_bcd_p4.png" alt="Combinación entre resultados de suma y resta" />
+<Figure src="practicas/practica-2/bloques/binario_bcd_p5.png" alt="Combinación entre multiplicación y suma resta" />
+<Figure src="practicas/practica-2/bloques/binario_bcd_p6.png" alt="Banco de LEDs de prueba para salidas intermedias" />
+<Figure src="practicas/practica-2/bloques/binario_bcd_p7.png" alt="Etapa final del conversor binario a BCD" />
 
 ### Resumen funcional por bloque
 
@@ -482,7 +484,7 @@ Esto evitó que un error local en un bloque se confundiera con un problema de in
 
 La captura general muestra el circuito completo con la salida aritmética y bloques auxiliares activos dentro del esquema.
 
-<img src="/media/practicas/practica-2/bloques/resultados.png" alt="Vista general de resultados dentro del esquema de Proteus" />
+<Figure src="practicas/practica-2/bloques/resultados.png" alt="Vista general de resultados dentro del esquema de Proteus" />
 
 ### Montaje físico
 
@@ -499,7 +501,7 @@ El montaje físico puso en evidencia la complejidad real del proyecto: aunque el
 
 En otras palabras, la versión física no solo prueba el diseño lógico; también pone a prueba la organización práctica del sistema.
 
-<img src="/media/practicas/practica-2/montaje/frame.jpeg" alt="Montaje físico principal de LogicCalc en protoboards" />
+<Figure src="practicas/practica-2/montaje/frame.jpeg" alt="Montaje físico principal de LogicCalc en protoboards" />
 
 ## Pruebas y validación
 
@@ -563,32 +565,32 @@ En otras palabras, la versión física no solo prueba el diseño lógico; tambi�
 Estas imágenes complementan la documentación del ensamble físico y muestran distintas vistas del cableado y la integración.
 
 #### Evidencia 1
-<img src="/media/practicas/practica-2/anexos/frame_000001.jpg" alt="Vista adicional 1 del montaje físico de la práctica 2" />
+<Figure src="practicas/practica-2/anexos/frame_000001.jpg" alt="Vista adicional 1 del montaje físico de la práctica 2" />
 
 Primera vista del montaje donde se aprecia la distribución general del sistema sobre protoboards.
 
 #### Evidencia 2
-<img src="/media/practicas/practica-2/anexos/frame_000048.jpg" alt="Vista adicional 2 del montaje físico de la práctica 2" />
+<Figure src="practicas/practica-2/anexos/frame_000048.jpg" alt="Vista adicional 2 del montaje físico de la práctica 2" />
 
 Detalle intermedio del cableado y de la densidad de conexiones entre módulos.
 
 #### Evidencia 3
-<img src="/media/practicas/practica-2/anexos/frame_000118.jpg" alt="Vista adicional 3 del montaje físico de la práctica 2" />
+<Figure src="practicas/practica-2/anexos/frame_000118.jpg" alt="Vista adicional 3 del montaje físico de la práctica 2" />
 
 Se observa el avance del ensamble físico y la integración progresiva de bloques TTL.
 
 #### Evidencia 4
-<img src="/media/practicas/practica-2/anexos/frame_000241.jpg" alt="Vista adicional 4 del montaje físico de la práctica 2" />
+<Figure src="practicas/practica-2/anexos/frame_000241.jpg" alt="Vista adicional 4 del montaje físico de la práctica 2" />
 
 Vista útil para identificar la ruta de alimentación y el patrón de interconexión central.
 
 #### Evidencia 5
-<img src="/media/practicas/practica-2/anexos/frame_000384.jpg" alt="Vista adicional 5 del montaje físico de la práctica 2" />
+<Figure src="practicas/practica-2/anexos/frame_000384.jpg" alt="Vista adicional 5 del montaje físico de la práctica 2" />
 
 Imagen que evidencia el crecimiento del montaje a medida que se agregan bloques funcionales.
 
 #### Evidencia 6
-<img src="/media/practicas/practica-2/anexos/frame_000410.jpg" alt="Vista adicional 6 del montaje físico de la práctica 2" />
+<Figure src="practicas/practica-2/anexos/frame_000410.jpg" alt="Vista adicional 6 del montaje físico de la práctica 2" />
 
 Captura final del ensamble, útil como referencia del estado consolidado del sistema.
 
@@ -596,7 +598,7 @@ Captura final del ensamble, útil como referencia del estado consolidado del sis
 
 La factura se utilizó como respaldo para consolidar el presupuesto real de componentes.
 
-<img src="/media/practicas/practica-2/presupuesto/factura.jpeg" alt="Factura de referencia utilizada para el presupuesto de la práctica 2" />
+<Figure src="practicas/practica-2/presupuesto/factura.jpeg" alt="Factura de referencia utilizada para el presupuesto de la práctica 2" />
 
 ## Recursos y herramientas utilizadas
 
