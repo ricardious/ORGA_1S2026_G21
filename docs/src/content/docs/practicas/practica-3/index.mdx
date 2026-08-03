@@ -3,6 +3,8 @@ title: "Práctica 3: Carrusel Automatizado con Control de Acceso Seguro"
 description: Diseño e implementación de un sistema secuencial con autenticación de 4 bits, contador de errores, alarma, temporización y control bidireccional de motor DC.
 ---
 
+import Figure from '../../../../components/Figure.astro';
+
 ## Resumen
 
 La práctica 3 consistió en diseñar e implementar un **carrusel automatizado con control de acceso seguro**, integrando lógica combinacional, lógica secuencial y una etapa de potencia para el manejo del motor.  
@@ -149,7 +151,7 @@ El Arduino no reemplaza la lógica digital del sistema. Su función se limita a:
 - cambiar de dirección y activar la fase de retorno durante 10 segundos,
 - detener el sistema cuando la habilitación desaparece.
 
-<img src="/media/practicas/practica-3/bloques/unidad_control_arduino.png" alt="Unidad de control con Arduino en Proteus" />
+<Figure src="practicas/practica-3/bloques/unidad_control_arduino.png" alt="Unidad de control con Arduino en Proteus" />
 
 ### Módulo de autenticación
 
@@ -161,11 +163,11 @@ La autenticación se compone de tres etapas:
 
 Esta estructura evita que el sistema dependa directamente del tiempo de presión del botón y permite que la habilitación permanezca estable una vez validada.
 
-<img src="/media/practicas/practica-3/bloques/modulo_autenticacion_general.png" alt="Vista general del módulo de autenticación" />
+<Figure src="practicas/practica-3/bloques/modulo_autenticacion_general.png" alt="Vista general del módulo de autenticación" />
 
-<img src="/media/practicas/practica-3/bloques/memoria_contrasena_y_comparador.png" alt="Registro de contraseña y comparador de 4 bits" />
+<Figure src="practicas/practica-3/bloques/memoria_contrasena_y_comparador.png" alt="Registro de contraseña y comparador de 4 bits" />
 
-<img src="/media/practicas/practica-3/bloques/latch_autorizacion_auth_ok.png" alt="Latch de autorización AUTH_OK" />
+<Figure src="practicas/practica-3/bloques/latch_autorizacion_auth_ok.png" alt="Latch de autorización AUTH_OK" />
 
 ### Contador de errores y alarma
 
@@ -173,11 +175,11 @@ Cada validación incorrecta genera un pulso `ERROR`. Ese pulso alimenta un conta
 
 Cuando el contador alcanza `11`, una lógica de detección activa la alarma y deshabilita el movimiento. El display asociado muestra visualmente el número de errores acumulados.
 
-<img src="/media/practicas/practica-3/bloques/modulo_contador_errores_alarma_general.png" alt="Vista general del módulo de contador de errores y alarma" />
+<Figure src="practicas/practica-3/bloques/modulo_contador_errores_alarma_general.png" alt="Vista general del módulo de contador de errores y alarma" />
 
-<img src="/media/practicas/practica-3/bloques/contador_errores_flip_flops.png" alt="Contador de errores implementado con flip-flops tipo D" />
+<Figure src="practicas/practica-3/bloques/contador_errores_flip_flops.png" alt="Contador de errores implementado con flip-flops tipo D" />
 
-<img src="/media/practicas/practica-3/bloques/display_contador_errores.png" alt="Display del contador de errores" />
+<Figure src="practicas/practica-3/bloques/display_contador_errores.png" alt="Display del contador de errores" />
 
 ### Temporización y secuencia
 
@@ -202,11 +204,11 @@ El contador descendente también usa cuatro flip-flops tipo D, pero su realiment
 
 Para construir esa condición se utilizó una **NAND de 4 entradas**, porque era necesario resumir el estado completo del bloque y generar una sola señal de carga (`LOAD_10`) útil en lógica TTL. Esa señal permite arrancar siempre desde 10 y evita que el contador herede un estado residual de la fase anterior.
 
-<img src="/media/practicas/practica-3/bloques/modulo_temporizacion_secuencia_general.png" alt="Vista general del módulo de temporización y secuencia" />
+<Figure src="practicas/practica-3/bloques/modulo_temporizacion_secuencia_general.png" alt="Vista general del módulo de temporización y secuencia" />
 
-<img src="/media/practicas/practica-3/bloques/contador_ascendente_0_a_15.png" alt="Contador ascendente de 0 a 15" />
+<Figure src="practicas/practica-3/bloques/contador_ascendente_0_a_15.png" alt="Contador ascendente de 0 a 15" />
 
-<img src="/media/practicas/practica-3/bloques/contador_descendente_10_a_0.png" alt="Contador descendente de 10 a 0" />
+<Figure src="practicas/practica-3/bloques/contador_descendente_10_a_0.png" alt="Contador descendente de 10 a 0" />
 
 ### Multiplexación y visualización
 
@@ -218,7 +220,7 @@ La lógica de visualización permite:
 - mostrar el conteo descendente durante la fase roja,
 - activar la decena cuando el valor llega a `10` o más.
 
-<img src="/media/practicas/practica-3/bloques/logica_multiplexacion_y_displays_tiempo.png" alt="Lógica de multiplexación y adaptación a displays de tiempo" />
+<Figure src="practicas/practica-3/bloques/logica_multiplexacion_y_displays_tiempo.png" alt="Lógica de multiplexación y adaptación a displays de tiempo" />
 
 ### Control del motor DC
 
@@ -230,13 +232,13 @@ En las evidencias físicas puede observarse el cableado asociado al motor y la i
 
 La maqueta integra la estructura mecánica del carrusel con las placas de protoboard y el cableado de control. Las fotografías muestran tanto el montaje general como pruebas más cercanas del motor y del sistema completo.
 
-<img src="/media/practicas/practica-3/montaje/carrusel_maqueta_completa.jpeg" alt="Maqueta completa del carrusel con circuitos de control" />
+<Figure src="practicas/practica-3/montaje/carrusel_maqueta_completa.jpeg" alt="Maqueta completa del carrusel con circuitos de control" />
 
-<img src="/media/practicas/practica-3/montaje/carrusel_con_breadboards.jpeg" alt="Carrusel integrado con protoboards y circuitos digitales" />
+<Figure src="practicas/practica-3/montaje/carrusel_con_breadboards.jpeg" alt="Carrusel integrado con protoboards y circuitos digitales" />
 
-<img src="/media/practicas/practica-3/montaje/carrusel_vista_superior.jpeg" alt="Vista superior del montaje físico del carrusel" />
+<Figure src="practicas/practica-3/montaje/carrusel_vista_superior.jpeg" alt="Vista superior del montaje físico del carrusel" />
 
-<img src="/media/practicas/practica-3/montaje/prueba_motor_y_cableado.jpeg" alt="Prueba física del motor y verificación de cableado" />
+<Figure src="practicas/practica-3/montaje/prueba_motor_y_cableado.jpeg" alt="Prueba física del motor y verificación de cableado" />
 
 ## Pruebas y funcionamiento observado
 
