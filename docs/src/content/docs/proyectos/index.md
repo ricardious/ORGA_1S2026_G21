@@ -1,32 +1,22 @@
 ---
-title: Proyectos
-description: Índice general de proyectos del curso y acceso a la documentación publicada.
+title: Proyecto
+description: "Proyecto integrador del curso: casa inteligente con control de ambientes y ventilador automatizado."
 ---
 
-# Proyectos
+El proyecto integrador del curso cierra el semestre trasladando el trabajo de lógica discreta de las prácticas hacia un sistema embebido completo, con memoria persistente, comunicación serial y control remoto.
 
-Esta sección centraliza la documentación de los proyectos integradores del curso.
+## Proyecto
 
-## Estado actual
+| Proyecto | Tema | Entrega |
+|---|---|:---:|
+| [Casa inteligente](casa-inteligente/) | Maqueta domótica con Arduino, escenas en EEPROM, LCD I2C y control por Bluetooth | 02/05/2026 |
 
-- Proyecto publicado: [Casa inteligente con control de ambientes y ventilador automatizado](/proyectos/casa-inteligente/).
-- La documentación ya incorpora evidencia física reciente del montaje.
-- El firmware Arduino fue revisado y la redacción quedó alineada con su comportamiento actual.
+## Qué aporta respecto a las prácticas
 
-## Proyecto disponible
+Mientras las prácticas se resolvieron con compuertas, contadores y flip-flops discretos, el proyecto centra el trabajo en la **organización de la memoria**: cómo se estructura una escena de 36 bytes, en qué dirección fija se almacena, cuándo se valida y cuándo se persiste.
 
-- [Casa inteligente con control de ambientes y ventilador automatizado](/proyectos/casa-inteligente/)
+A eso se suman tres capas de software que no aparecían en las prácticas:
 
-## Lineamientos
-
-- Definir alcance, entregables y restricciones técnicas.
-- Documentar decisiones de diseño y validaciones.
-- Consolidar simulación, montaje, PCB y presupuesto.
-
-## Entregables y evidencias
-
-- Documento técnico compilable: `Proyecto/documentacion_proyecto.tex`
-- Simulación y esquema: `Proyecto/G21_S1_2026_Proyecto.pdsprj`
-- Firmware Arduino: `Proyecto/arduino/eeprom_liquid_controller/eeprom_liquid_controller.ino`
-- App de escritorio: `Proyecto/EEPROM_Liquid_Controller/`
-- App móvil: `Proyecto/eeprom_liquid_remote/`
+- **Firmware Arduino** que concentra la lógica: validación del formato de entrada, escritura en EEPROM y control de actuadores.
+- **Aplicación de escritorio** en Python que transfiere archivos `.org` por USB.
+- **Aplicación móvil** en Flutter que envía comandos por Bluetooth clásico.

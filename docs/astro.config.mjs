@@ -99,7 +99,7 @@ export default defineConfig({
           ],
         },
         {
-          label: "Proyectos",
+          label: "Proyecto",
           autogenerate: { directory: "proyectos" },
         },
         // {
