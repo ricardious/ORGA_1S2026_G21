@@ -90,6 +90,10 @@ export default defineConfig({
           link: "/",
         },
         {
+          label: "Fundamentos",
+          autogenerate: { directory: "fundamentos" },
+        },
+        {
           label: "Prácticas",
           items: [
             { label: "Vista general", link: "/practicas/" },
@@ -102,10 +106,6 @@ export default defineConfig({
           label: "Proyecto",
           autogenerate: { directory: "proyectos" },
         },
-        // {
-        //   label: "Apuntes",
-        //   autogenerate: { directory: "apuntes" },
-        // },
       ],
       plugins: [ion()],
       customCss: ["./src/styles/custom.css"],

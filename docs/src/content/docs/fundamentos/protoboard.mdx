@@ -1,0 +1,176 @@
+---
+title: El protoboard
+description: Cómo está conectado un protoboard por dentro, por qué los integrados van a caballo del canal y qué errores de montaje cuestan más tiempo.
+sidebar:
+  order: 12
+---
+
+import Breadboard from '../../../components/Breadboard.astro';
+
+Un protoboard permite montar un circuito **sin soldar nada**: los componentes se clavan en agujeros que ya están conectados entre sí por dentro. Todo se puede desarmar y reutilizar, que es justo lo que hace falta cuando un diseño va a cambiar diez veces.
+
+El precio de esa comodidad es que **las conexiones son invisibles**. Casi todos los fallos de montaje vienen de asumir mal qué agujeros están unidos.
+
+## Cómo está conectado por dentro
+
+Hay exactamente tres tipos de grupo, y no hay más misterio que ese:
+
+<Breadboard
+  columns={24}
+  blocks={[
+    { col: 5, half: "top", term: "Bloque A-E de la columna 5: cinco agujeros unidos" },
+    { col: 5, half: "bottom", term: "Bloque F-J de la columna 5: otro nodo, independiente del anterior" },
+  ]}
+  rails={[{ index: 0, term: "Riel: recorre todo el largo de la placa" }]}
+  caption="Los tres tipos de conexión interna. Nada más está unido."
+/>
+
+- **Cada bloque de cinco agujeros** (`A` a `E`, o `F` a `J`) de una misma columna está unido por dentro. Meter dos patas ahí es conectarlas.
+- **El canal central separa las dos mitades.** La columna 5 arriba y la columna 5 abajo son **nodos distintos**, aunque estén alineados.
+- **Los rieles laterales** recorren la placa a lo largo y sirven para repartir alimentación.
+
+Todo lo demás está aislado: dos columnas contiguas no se tocan.
+
+:::tip[La pregunta que resuelve todo]
+Ante cualquier duda de montaje: *¿estas dos patas están en el mismo bloque de cinco?* Si la respuesta es sí, están conectadas. Si es no, hace falta un cable.
+:::
+
+## Por qué los integrados van a caballo del canal
+
+Aquí está el motivo de que exista el canal. Un integrado se coloca **cruzándolo**, con cada fila de pines en una mitad distinta:
+
+<Breadboard
+  columns={24}
+  chip={{ col: 8, pins: 14, label: "74LS08" }}
+  blocks={[
+    { col: 8, half: "top", term: "Pin 1: su propio nodo, con cuatro agujeros libres" },
+    { col: 8, half: "bottom", term: "Pin 14: nodo independiente del pin 1" },
+  ]}
+  caption="Montaje correcto: cada pin cae en un bloque distinto y queda accesible."
+/>
+
+Así cada pin aterriza en su propio bloque de cinco, y quedan **cuatro agujeros libres por pin** para conectarle cables. Es exactamente el ancho del canal el que hace que los pines de un DIP-14 encajen enfrentados sin tocarse.
+
+Si el integrado se monta **dentro de una sola mitad**, cada par de pines enfrentados cae en el mismo bloque de cinco y queda cortocircuitado:
+
+<Breadboard
+  columns={24}
+  badChip={{ col: 8, pins: 14 }}
+  blocks={[
+    { col: 8, half: "top", term: "Los dos pines de la columna 8 caen en el mismo nodo: cortocircuito" },
+  ]}
+  caption="Montaje incorrecto: sin cruzar el canal, cada pin queda unido a su opuesto."
+/>
+
+El circuito no funciona y el integrado puede calentarse, porque en muchos casos eso une una salida con una entrada, o directamente alimentación con tierra.
+
+Lo mismo aplica al DIP switch de las [entradas](../entradas-dip-switch/): si no cruza el canal, los dos lados de cada interruptor quedan unidos y no conmuta nada.
+
+## Los rieles de alimentación
+
+Los cuatro rieles —dos arriba, dos abajo— **son independientes entre sí**. Que haya una línea roja pintada a lo largo no significa que esté conectada con la roja del otro lado.
+
+<Breadboard
+  columns={24}
+  showRowLabels={false}
+  showColumnLabels={false}
+  railLinks={[
+    {
+      fromRail: 0,
+      toRail: 3,
+      col: 2,
+      color: "#dc2626",
+      term: "VCC: une el riel positivo superior con el positivo inferior",
+      bend: "left",
+    },
+    {
+      fromRail: 1,
+      toRail: 2,
+      col: 4,
+      color: "#2563eb",
+      term: "GND: une el riel de tierra superior con el inferior",
+      bend: "right",
+    },
+  ]}
+  caption="Conexión de alimentación entre ambos lados: rojo une VCC con VCC y azul une GND con GND."
+/>
+
+Si el circuito necesita alimentación en ambos lados, hay que **puentear los rieles con dos cables** en un extremo de la placa: `V_CC` superior con `V_CC` inferior, y `GND` superior con `GND` inferior. Nunca se debe cruzar positivo con tierra. Es de las primeras cosas que conviene hacer, antes de montar nada.
+
+Dos detalles más:
+
+- **Muchos protoboards tienen el riel partido por la mitad.** Se nota porque la línea roja o azul se interrumpe. Si el tuyo es así y no lo puenteas, la mitad derecha del circuito se queda sin alimentación y el fallo parece un problema de lógica.
+- **La tierra debe ser común.** Si alimentas una parte desde una fuente y otra desde el USB del Arduino, sus tierras tienen que estar unidas o las señales no comparten referencia.
+
+### Cuando las compuertas parecían estar mal
+
+Durante el montaje nos pasó algo que nos hizo perder demasiado tiempo: varias compuertas no funcionaban, aunque las ecuaciones estaban correctas y los transistores parecían bien conectados. Revisamos una y otra vez la lógica, cambiamos componentes y seguimos cables pensando que el error estaba en el circuito.
+
+Al final descubrimos que el problema era mucho más sencillo. **Los rieles de alimentación del protoboard estaban divididos por la mitad y no habíamos colocado los puentes.** La fuente alimentaba un lado de la placa, pero las compuertas del otro lado no recibían `V_CC` o no tenían conexión a tierra.
+
+La solución fue colocar dos cables cortos atravesando la separación central: uno para unir las dos partes del riel positivo y otro para unir las dos partes del riel de tierra. Después de ponerlos, las compuertas comenzaron a funcionar sin cambiar nada de la lógica.
+
+<Breadboard
+  columns={24}
+  showRowLabels={false}
+  showColumnLabels={false}
+  railBreaks={[
+    { index: 0, afterCol: 11 },
+    { index: 1, afterCol: 11 },
+  ]}
+  railBridges={[
+    {
+      index: 0,
+      fromCol: 10,
+      toCol: 14,
+      color: "#dc2626",
+      term: "Puente de VCC: une los dos tramos del riel positivo",
+      arch: "up",
+    },
+    {
+      index: 1,
+      fromCol: 10,
+      toCol: 14,
+      color: "#2563eb",
+      term: "Puente de GND: une los dos tramos del riel de tierra",
+      arch: "down",
+    },
+  ]}
+  caption="Ejemplo general: los cables rojo y azul atraviesan el corte y dan continuidad a los rieles de alimentación. La ubicación real del corte depende del protoboard."
+/>
+
+:::caution[Comprobación antes de revisar la lógica]
+Los protoboards tienen diferentes tamaños y distribuciones. Algunos rieles son continuos y otros están divididos en uno o más puntos. Antes de cambiar transistores o rehacer conexiones, revisa visualmente los rieles y usa el multímetro para comprobar continuidad de un extremo al otro. Si no hay continuidad, une los tramos con un puente.
+:::
+
+## Errores que cuestan tiempo
+
+- **Montar el integrado sin cruzar el canal.** Cortocircuita cada par de pines enfrentados.
+- **Olvidar puentear los rieles** entre la mitad superior e inferior, o entre los tramos de un riel partido.
+- **Poner las dos patas de una resistencia en el mismo bloque de cinco.** Queda puenteada y no hace nada; es especialmente fácil con resistencias pequeñas.
+- **Cables largos cruzando la placa.** Además de tapar los agujeros, dificultan seguir una señal cuando algo falla.
+- **Confiar en un contacto flojo.** Los agujeros se desgastan con el uso; una pata que no hace presión provoca fallos intermitentes que parecen errores de diseño.
+
+## Buenas prácticas que ahorran depuración
+
+Estas salieron de los montajes de las prácticas, donde la integración pesó más que el diseño:
+
+- **Alimentar primero, montar después.** Puentea los rieles y verifica con el multímetro antes de colocar componentes.
+- **Un color por función.** Rojo para positivo, negro para tierra y otros colores para señales. Cuando hay veinte cables, el color es lo único que permite seguir uno.
+- **Cables a ras de la placa** y del largo justo. Un puente que sobrevuela media placa es imposible de rastrear.
+- **Montar por bloques y probar cada uno** antes de integrarlo. La [Práctica 2](../../practicas/practica-2/) documenta que lo que consumió el tiempo no fue diseñar cada bloque, sino unirlos.
+- **Verificar continuidad con el multímetro** cuando algo no responde, en vez de mirar el cableado. Un contacto flojo no se ve.
+
+## Hasta dónde llega un protoboard
+
+Conviene saber qué no aguanta, porque explica varios fallos que parecen inexplicables:
+
+- **Corriente limitada.** Los contactos internos son láminas de metal a presión; para un motor o una carga apreciable hay que alimentar aparte y usar el protoboard solo para la lógica de control. Es la razón de separar la etapa de potencia en la [Práctica 3](../../practicas/practica-3/).
+- **Capacidad parásita entre líneas.** Irrelevante en lógica lenta, pero limita las frecuencias altas.
+- **Contactos que envejecen.** Un protoboard muy usado empieza a dar fallos aleatorios; conviene reservar la zona menos castigada para las señales críticas.
+
+## Dónde se aplica esto
+
+Las tres prácticas se montaron sobre protoboard, y las dos primeras reportan lo mismo en sus conclusiones: **el salto de la simulación al montaje es donde aparecen los problemas**, y casi siempre son de interconexión, alimentación u orden de cableado, no de diseño lógico.
+
+Para lo que se monta encima, ver [Entradas con DIP switch](../entradas-dip-switch/), [Compuertas lógicas con transistores](../compuertas-transistorizadas/) y [Displays de 7 segmentos](../displays-7-segmentos/).
