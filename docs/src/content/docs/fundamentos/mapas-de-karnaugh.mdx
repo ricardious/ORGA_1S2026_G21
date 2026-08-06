@@ -1,0 +1,329 @@
+---
+title: Mapas de Karnaugh
+description: Mintérminos, maxtérminos y cómo pasar de la forma canónica a la ecuación mínima agrupando en un K-map, sin caer en la trampa de negar la SOP para obtener la POS.
+sidebar:
+  order: 1
+---
+
+import KMap from '../../../components/KMap.astro';
+
+Un mapa de Karnaugh convierte la simplificación booleana en algo **visual**: en vez de aplicar identidades algebraicas hasta que la expresión deje de encogerse, se dibuja la tabla de verdad de forma que los términos que se pueden fusionar queden pegados, y se agrupan a ojo.
+
+Es la herramienta que se usa en las tres prácticas. Todos los ejemplos de esta página son mapas reales de la [Práctica 1](../../practicas/practica-1/).
+
+Para comprobar un resultado ya resuelto a mano, hay una [calculadora interactiva](../../calculadoras/karnaugh/) que además dibuja el circuito.
+
+## Mintérminos: de la tabla de verdad a la ecuación
+
+Antes del mapa hay un paso que conviene tener claro, porque explica **qué se está simplificando**.
+
+Cualquier tabla de verdad se puede convertir en ecuación de forma mecánica, sin pensar. Cada fila donde la función vale `1` aporta un **mintérmino**: un producto de *todas* las variables, en el que cada una aparece **negada si en esa fila vale `0`**, y tal cual si vale `1`.
+
+Tomando el segmento `a`, que vale `1` en tres filas:
+
+| Índice | `A` | `B` | `C` | Mintérmino |
+|:---:|:---:|:---:|:---:|:---|
+| 4 | 1 | 0 | 0 | `AB'C'` |
+| 5 | 1 | 0 | 1 | `AB'C` |
+| 7 | 1 | 1 | 1 | `ABC` |
+
+Sumarlos da la **forma canónica SOP**, que es correcta pero literal:
+
+```text
+a = AB'C' + AB'C + ABC
+```
+
+Se abrevia listando los índices: `a = Σm(4, 5, 7)`.
+
+El problema es el costo. Esa expresión tiene **tres términos de tres variables cada uno**: nueve literales, y cada literal es una entrada de compuerta que hay que cablear. La versión mínima del mismo segmento es:
+
+```text
+a = AB' + AC
+```
+
+Dos términos de dos variables: **cuatro literales**. Menos de la mitad.
+
+:::tip[Para eso sirve el mapa]
+El K-map no inventa la ecuación —esa ya sale de la tabla—. Lo que hace es llevarte de la **forma canónica** a la **mínima** sin tener que aplicar identidades algebraicas a mano.
+:::
+
+### De dónde sale la numeración
+
+El índice de un mintérmino es simplemente el valor decimal de la fila leída como binario. Para `ABC`:
+
+```text
+A=1, B=0, C=1  →  101  →  5  →  m5
+```
+
+Esa numeración es la que se usa para localizar celdas en el mapa, y por eso las agrupaciones se pueden escribir como listas de índices en lugar de describir posiciones.
+
+## Por qué las columnas van 00, 01, 11, 10
+
+Este es el detalle que hace que todo funcione, y el que más se copia mal.
+
+### De dónde sale la regla
+
+Todo el método descansa en una única identidad booleana:
+
+```text
+XY + XY'  =  X(Y + Y')  =  X·1  =  X
+```
+
+Es decir: si dos términos son **idénticos salvo en una variable**, y esa variable aparece en uno normal y en el otro negada, los dos se fusionan en uno solo y la variable desaparece.
+
+Agrupar en un mapa no es más que aplicar esa identidad de forma visual. Pero para poder aplicarla **hace falta que las celdas vecinas se diferencien en exactamente una variable**, y eso no ocurre por casualidad: hay que ordenar las columnas a propósito para conseguirlo.
+
+### Binario contra Gray
+
+Compara qué cambia en cada salto:
+
+**Orden binario** — `00, 01, 10, 11`
+
+| Salto | `00`→`01` | `01`→`10` | `10`→`11` |
+|---|:---:|:---:|:---:|
+| Bits que cambian | 1 | **2** ✗ | 1 |
+
+**Código Gray** — `00, 01, 11, 10`
+
+| Salto | `00`→`01` | `01`→`11` | `11`→`10` | `10`→`00` |
+|---|:---:|:---:|:---:|:---:|
+| Bits que cambian | 1 | 1 | 1 | 1 |
+
+En el orden binario, el salto de `01` a `10` cambia **las dos variables a la vez**. Dos celdas ahí no cumplen la identidad de arriba y fusionarlas no simplifica nada: el resultado sería sencillamente falso.
+
+En Gray no hay ningún salto de dos bits, ni siquiera el último. Fíjate en `10`→`00`, que es el paso de la última columna a la primera: también cambia un solo bit. Por eso **los bordes se tocan** y un grupo puede envolver el mapa. La tabla es plana solo por comodidad de dibujo; conceptualmente está enrollada.
+
+### Cómo se construye la secuencia
+
+No hay que memorizarla. Se genera **reflejando** la anterior:
+
+1. Con 1 bit: `0, 1`
+2. Se copia la lista, se le da la vuelta y se pega debajo: `0, 1, 1, 0`
+3. Se antepone `0` a la mitad de arriba y `1` a la de abajo: `00, 01, 11, 10`
+
+Repitiendo el proceso sale la de 3 bits (`000, 001, 011, 010, 110, 111, 101, 100`), que es la que se usa en las columnas de un mapa de 4 variables.
+
+## Cómo se lee un grupo
+
+Dentro de un grupo, algunas variables se mantienen constantes y otras cambian:
+
+- Las que **cambian** desaparecen del término.
+- Las que se mantienen **constantes** se quedan: tal cual si valen `1`, negadas si valen `0`.
+
+Y el tamaño manda. La regla general: en un mapa de `n` variables, un grupo de `2^k` celdas deja un término de **`n − k` variables**. Cada vez que un grupo dobla su tamaño, desaparece una variable más.
+
+| Celdas del grupo | Con 3 variables | Con 4 variables |
+|:---:|:---:|:---:|
+| 1 | 3 variables | 4 variables |
+| 2 | 2 variables | 3 variables |
+| 4 | 1 variable | 2 variables |
+| 8 | constante `1` | 1 variable |
+| 16 | — | constante `1` |
+
+:::tip[La regla en una línea]
+Cuanto más grande el grupo, más corto el término. Por eso siempre se busca el grupo más grande posible, aunque implique repetir celdas ya cubiertas.
+:::
+
+### Reglas de agrupación
+
+- Los grupos son **rectángulos de tamaño potencia de 2**: 1, 2, 4 u 8 celdas. Nunca 3 ni 6.
+- Se puede **reutilizar una celda** en varios grupos. No es un error: suele ser lo que permite agrandarlos.
+- Los bordes **se envuelven**, tanto en horizontal como en vertical.
+- Hay que cubrir **todos** los `1`, y ningún grupo puede tocar un `0`.
+
+## Ejemplo 1: dos grupos que comparten una celda
+
+Este es el segmento `a` del display. Se agrupan los unos:
+
+<KMap
+  values="00001101"
+  groups={[
+    { cells: [4, 5], term: "AB'" },
+    { cells: [5, 7], term: "AC" },
+  ]}
+  caption="Segmento a — los unos se cubren con dos grupos de dos celdas."
+/>
+
+- El grupo azul mantiene `A=1` y `B=0`, mientras `C` cambia → **`AB'`**
+- El grupo rojo mantiene `A=1` y `C=1`, mientras `B` cambia → **`AC`**
+
+La celda del centro pertenece a los dos, y por eso aparece rayada. Reutilizarla es lo que permite que ambos grupos lleguen a dos celdas en lugar de quedarse en unos aislados.
+
+```text
+a = AB' + AC
+```
+
+## Ejemplo 2: el envolvimiento de los bordes
+
+El segmento `b` es el caso donde se ve para qué sirve que el mapa se enrolle:
+
+<KMap
+  values="11101110"
+  groups={[
+    { cells: [0, 1, 4, 5], term: "B'" },
+    { cells: [0, 2, 4, 6], term: "C'" },
+  ]}
+  caption="Segmento b — el grupo rojo usa las columnas de los extremos, que son contiguas."
+/>
+
+El grupo rojo ocupa las columnas `00` y `10`, que están en lados opuestos de la tabla. Son adyacentes porque difieren solo en `B`. Si no se aprovecha ese envolvimiento, hay que partirlo en dos grupos de dos celdas y la ecuación sale más larga sin necesidad.
+
+Ambos grupos son de cuatro celdas, así que cada uno deja un término de **una sola variable**:
+
+```text
+b = B' + C'
+```
+
+## Ejemplo 3: cuando no todo simplifica
+
+El segmento `c` recuerda que el objetivo no es que quede bonito, sino que quede correcto:
+
+<KMap
+  values="01001011"
+  groups={[
+    { cells: [6, 7], term: "AB" },
+    { cells: [4, 6], term: "AC'" },
+    { cells: [1], term: "A'B'C" },
+  ]}
+  caption="Segmento c — el uno de arriba queda aislado y arrastra las tres variables."
+/>
+
+El `1` verde no tiene ningún vecino con quien agruparse: sus cuatro celdas adyacentes valen `0`. Se queda como grupo de una sola celda, y un grupo de una celda conserva **todas** las variables:
+
+```text
+c = AB + AC' + A'B'C
+```
+
+Con tres bits de entrada las ocho combinaciones están usadas, así que **no hay condiciones «no importa»** que permitan agrandar el grupo. Cada celda tiene un valor obligatorio y hay que respetarlo.
+
+## Mapas de cuatro variables
+
+Tres bits dan ocho combinaciones y el mapa cabe en dos filas. Pero lo habitual es trabajar con **cuatro**: los operandos de la [Práctica 2](../../practicas/practica-2/) y la contraseña de la [Práctica 3](../../practicas/practica-3/) son de 4 bits, y ahí el mapa pasa a ser de 4×4.
+
+El cambio es que **las filas también van en código Gray**. En vez de una sola variable con valores `0` y `1`, las filas pasan a ser el par `AB` recorriendo `00, 01, 11, 10`, igual que las columnas.
+
+Y de ahí sale la consecuencia importante: si con tres variables el mapa se enrollaba solo en horizontal, ahora **se enrolla también en vertical**. La primera y la última fila son adyacentes.
+
+<KMap
+  vars={["A", "B", "C", "D"]}
+  values="1010000010101111"
+  groups={[
+    { cells: [0, 2, 8, 10], term: "B'D'" },
+    { cells: [12, 13, 14, 15], term: "AB" },
+  ]}
+  caption="Función de cuatro variables con un grupo en las esquinas y otro en una fila completa."
+/>
+
+```text
+f = B'D' + AB
+```
+
+Este ejemplo no sale de las prácticas: está construido para mostrar los dos casos que solo aparecen con cuatro variables.
+
+### Las cuatro esquinas forman un grupo
+
+El grupo azul es el que sorprende. Las cuatro celdas de las esquinas **no están sueltas**: son adyacentes entre sí porque el mapa envuelve en las dos direcciones. La primera y la última columna se tocan, y también la primera y la última fila.
+
+Comprueba que se cumple la condición: en esas cuatro celdas `B = 0` y `D = 0` siempre, mientras que `A` y `C` toman todos los valores. Cuatro celdas, dos variables constantes, término de dos literales: **`B'D'`**.
+
+Es la agrupación que más se pasa por alto, precisamente porque en el dibujo plano las esquinas parecen lo más alejado que hay.
+
+### Un grupo puede ser válido y aun así sobrar
+
+En este mismo mapa, las celdas `{8, 10, 12, 14}` también forman un grupo legítimo de cuatro —`A` constante en `1` y `D` en `0`, término `AD'`—. Y sin embargo no aparece en la solución.
+
+El motivo es que no aporta nada: todas sus celdas ya quedan cubiertas por los otros dos grupos. En cambio `B'D'` sí es imprescindible, porque es el único grupo que puede cubrir la esquina superior izquierda.
+
+La regla práctica es empezar por las celdas que tienen **una sola forma posible de agruparse**: esos grupos son obligatorios, y una vez colocados suele quedar claro qué falta por cubrir.
+
+## Maxtérminos y la forma POS
+
+Todo lo anterior produce **SOP** (suma de productos), que es lo que necesita un display de cátodo común. Para **ánodo común** hace falta la forma **POS** (producto de sumas), y todo el método se refleja como en un espejo.
+
+### El maxtérmino es el reflejo del mintérmino
+
+Donde el mintérmino miraba las filas que valen `1`, el **maxtérmino** mira las que valen `0`. Y donde el mintérmino era un producto, el maxtérmino es una **suma**. Las variables también entran al revés: **negadas si en esa fila valen `1`**, tal cual si valen `0`.
+
+Tomando el segmento `a` en ánodo común, que vale `0` en tres filas:
+
+| Índice | `A` | `B` | `C` | Maxtérmino |
+|:---:|:---:|:---:|:---:|:---|
+| 4 | 1 | 0 | 0 | `(A' + B + C)` |
+| 5 | 1 | 0 | 1 | `(A' + B + C')` |
+| 7 | 1 | 1 | 1 | `(A' + B' + C')` |
+
+Multiplicarlos da la **forma canónica POS**:
+
+```text
+a = (A' + B + C)(A' + B + C')(A' + B' + C')
+```
+
+Que se abrevia `a = ΠM(4, 5, 7)`.
+
+Compara con lo de antes: en cátodo común el mismo segmento era `Σm(4, 5, 7)`. **Los índices son los mismos**, porque una función es el complemento de la otra: los unos de un mapa son exactamente los ceros del otro. Lo único que cambia es si esos índices se leen como mintérminos que se suman o como maxtérminos que se multiplican.
+
+### Agrupar los ceros
+
+La forma canónica POS también es cara —tres factores de tres variables—, así que se minimiza igual: **agrupando en el mapa**, solo que ahora se rodean los ceros.
+
+En un grupo de ceros el término resultante es una suma, y las variables constantes entran con el mismo criterio del maxtérmino: negadas si valen `1`, tal cual si valen `0`.
+
+<KMap
+  values="11110010"
+  target="zeros"
+  groups={[
+    { cells: [4, 5], term: "(A' + B)" },
+    { cells: [5, 7], term: "(A' + C')" },
+  ]}
+  caption="Segmento a en ánodo común — las mismas dos agrupaciones, ahora sobre los ceros."
+/>
+
+- Grupo azul: `A=1` → `A'`, `B=0` → `B` → **`(A' + B)`**
+- Grupo rojo: `A=1` → `A'`, `C=1` → `C'` → **`(A' + C')`**
+
+Los factores se multiplican entre sí:
+
+```text
+a = (A' + B)(A' + C')
+```
+
+## La trampa: negar la SOP no da la POS
+
+Compara los dos mapas del segmento `a`. El de ánodo es **exactamente el complemento** del de cátodo: donde había `1` ahora hay `0`. Y sin embargo las ecuaciones no se parecen en nada:
+
+```text
+cátodo:  a = AB' + AC
+ánodo:   a = (A' + B)(A' + C')
+```
+
+El error caro es diseñar todo en SOP y, al llegar al ánodo, negar la expresión final y darla por buena. **La negación de una suma de productos no es la suma de los productos negados**: por De Morgan, negar `AB' + AC` obliga a convertir sumas en productos y viceversa, y el resultado hay que volver a simplificar.
+
+Sale más rápido y más seguro **volver al mapa y agrupar los ceros**. Es el mismo dibujo, solo cambia qué celdas se rodean.
+
+:::caution[Ojo con el espejo]
+En la Práctica 1 el display trasero además va en espejo, lo que añade un intercambio de segmentos (`b ↔ f`, `c ↔ e`) **antes** de invertir la lógica. Son dos transformaciones distintas: está explicado en [Displays de 7 segmentos](../displays-7-segmentos/).
+:::
+
+## Cuándo conviene cada forma
+
+No es solo cuestión del tipo de display. Conviene mirar el mapa antes de decidir:
+
+- Si hay **pocos unos**, la SOP sale corta.
+- Si hay **pocos ceros**, la POS sale corta.
+
+Un mapa con siete unos y un cero genera una SOP con muchos términos, mientras que su POS se resuelve con un solo factor. Cuando el circuito lo permite, elegir la forma según lo que más escasee ahorra compuertas.
+
+## Errores que cuestan tiempo
+
+- **Escribir las columnas en orden binario** (`00, 01, 10, 11`). Los grupos que salgan de ahí no valen nada; es el error más difícil de detectar porque el mapa *parece* correcto.
+- **Olvidar el envolvimiento de los bordes**, y terminar con el doble de términos de los necesarios.
+- **Formar grupos de 3 celdas.** Solo valen potencias de 2.
+- **No reutilizar celdas** por creer que ya están cubiertas, lo que impide agrandar los grupos.
+- **Negar la SOP** para obtener la POS en vez de reagrupar los ceros.
+- **Copiar la tabla de verdad con las filas desordenadas.** Antes de agrupar, verifica un par de celdas contra la tabla original.
+
+## Dónde se aplica esto
+
+La [Práctica 1](../../practicas/practica-1/) contiene los dieciséis mapas completos: los ocho segmentos en SOP para cátodo común y los ocho en POS para ánodo común, cada uno con sus agrupaciones y su ecuación mínima.
+
+Una vez obtenida la ecuación, lo siguiente es construirla: ver [Compuertas lógicas con transistores](../compuertas-transistorizadas/).
