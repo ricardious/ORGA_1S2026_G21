@@ -1,0 +1,423 @@
+---
+title: Compuertas lógicas con transistores
+description: Cómo se construye cada compuerta a partir de transistores NPN, por qué unas topologías se encadenan bien y otras no, y cuándo conviene pasar a integrados TTL.
+sidebar:
+  order: 3
+---
+
+import Schematic from '../../../components/Schematic.astro';
+
+Esta página explica **cómo se arma cada compuerta desde cero** con transistores NPN y resistencias. Es el material que hubiéramos querido tener antes de empezar la [Práctica 1](../../practicas/practica-1/), donde estos bloques se usan para implementar las ecuaciones de cada segmento del display.
+
+No hace falta saber electrónica analógica. Basta con tratar al transistor como un interruptor que se abre y se cierra con una señal.
+
+## El transistor como interruptor
+
+Un transistor NPN tiene tres terminales. La flecha que sale del emisor es lo que lo identifica como NPN —si apuntara hacia adentro sería PNP, y el circuito no funcionaría igual.
+
+<Schematic
+  src="fundamentos/transistor_npn_partes.svg"
+  alt="Símbolo de un transistor NPN con base, colector y emisor identificados"
+  caption="Las tres terminales de un NPN. La flecha del emisor apunta hacia afuera."
+/>
+
+La idea que hay que retener es simple:
+
+- **Base en alto** → el transistor conduce → colector y emisor quedan conectados (interruptor cerrado).
+- **Base en bajo** → el transistor no conduce → colector y emisor quedan aislados (interruptor abierto).
+
+Todo lo demás en esta página es consecuencia de combinar interruptores.
+
+## El inversor: el bloque mínimo
+
+El circuito más simple que hace lógica es el inversor. Un solo transistor, dos resistencias.
+
+<Schematic
+  src="fundamentos/circuito_inversor.svg"
+  alt="Inversor NPN con resistencia de base y resistencia de colector"
+  caption="Inversor: la salida se toma en el colector."
+/>
+
+Cada resistencia tiene un trabajo concreto:
+
+- **`R_B`** limita la corriente que entra a la base. Sin ella, la señal de entrada intenta empujar más corriente de la que el transistor tolera.
+- **`R_C`** es la resistencia de *pull-up*: mantiene la salida en alto cuando el transistor **no** conduce.
+
+Qué valor concreto darles está más abajo, en [Qué valores usar para las resistencias](#qué-valores-usar-para-las-resistencias).
+
+Y de ahí sale el comportamiento inversor: cuando `A` está en alto el transistor conduce, conecta la salida a tierra y `Y` cae a `0`. Cuando `A` está en bajo el transistor se abre, y `R_C` levanta la salida hasta `V_CC`, dejando `Y` en `1`.
+
+**Fíjate dónde se toma la salida: en el colector.** Ese detalle es el que determina si una compuerta invierte o no, y más adelante explica por qué el AND es más caro que el NAND.
+
+### La entrada al aire
+
+Hay una variante que vale la pena conocer antes de cablear:
+
+<Schematic
+  src="fundamentos/circuito_inversor_pulldown.svg"
+  alt="Inversor NPN con resistencia adicional de pull-down en la base"
+  caption="Con R_PD, la base tiene un estado definido aunque la entrada se desconecte."
+/>
+
+Si dejas la entrada `A` desconectada —un DIP switch abierto, un cable suelto—, la base queda **flotando** y el transistor puede conducir o no de forma impredecible. La resistencia `R_PD` la amarra a tierra, de modo que "sin señal" significa `0` y no "lo que sea".
+
+Esto es responsable de buena parte de los fallos intermitentes que parecen errores de lógica. El mismo principio aplica a las entradas del circuito: cómo cablear un DIP switch para que nunca deje una línea al aire está en [Entradas con DIP switch](../entradas-dip-switch/).
+
+## La regla que gobierna todo
+
+A partir de aquí, cada compuerta es una red de interruptores. Solo hay dos formas de combinarlos, y cada una da una operación lógica:
+
+| Conexión | Condición para que la corriente pase | Operación |
+|---|---|---|
+| Transistores **en serie** | Todos deben conducir | **AND** |
+| Transistores **en paralelo** | Basta con que uno conduzca | **OR** |
+
+Si entiendes esto, ya puedes deducir cualquier compuerta de esta página. Lo único que queda por decidir es **dónde tomas la salida**, y eso determina si el resultado sale invertido.
+
+## NAND y NOR: las compuertas naturales
+
+Estas dos son las que salen "gratis", porque toman la salida en el colector, igual que el inversor.
+
+### NAND — dos transistores en serie
+
+<Schematic
+  src="fundamentos/compuerta_nand_transistores.svg"
+  alt="Compuerta NAND de dos entradas con transistores NPN en serie"
+  caption="NAND: ambos transistores deben conducir para que la salida caiga a 0."
+/>
+
+`Q1` y `Q2` están en serie. Para que la salida baje a `0`, la corriente tiene que atravesar los dos, así que **ambas entradas deben estar en alto**. En cualquier otro caso la cadena se corta y `R_C` levanta la salida a `1`.
+
+Eso es exactamente `Y = (A·B)'`.
+
+### NOR — dos transistores en paralelo
+
+<Schematic
+  src="fundamentos/compuerta_nor_2_entradas.svg"
+  alt="Compuerta NOR de dos entradas con transistores NPN en paralelo"
+  caption="NOR: cualquiera de los dos transistores puede tumbar la salida."
+/>
+
+Aquí los transistores están en paralelo: **cualquiera** que conduzca conecta la salida a tierra. La salida solo se queda en `1` si ninguna entrada está activa, es decir `Y = (A+B)'`.
+
+## AND y OR directas: la versión corta
+
+Para obtener AND y OR sin invertir, la tentación es mover la salida del colector al emisor. Funciona, y con menos componentes.
+
+<Schematic
+  src="fundamentos/compuerta_and_simple.svg"
+  alt="Compuerta AND de dos entradas con dos transistores en serie y salida en el emisor"
+  caption="AND directa: dos transistores en serie, salida tomada en el emisor con R_L a tierra."
+/>
+
+<Schematic
+  src="fundamentos/compuerta_or_simple.svg"
+  alt="Compuerta OR de dos entradas con dos transistores en paralelo y salida en el emisor"
+  caption="OR directa: dos transistores en paralelo compartiendo una sola R_L."
+/>
+
+La estructura es la misma de antes —serie para AND, paralelo para OR—, pero ahora la salida sale por el emisor y `R_L` la mantiene en `0` cuando ningún transistor conduce. No hay inversión: la salida sigue a la entrada.
+
+**El problema aparece al encadenarlas.** Cuando la salida se toma en el emisor, el transistor trabaja como *seguidor*: el nivel alto que entrega no llega a `V_CC`, sino que queda aproximadamente **0.7 V por debajo** de lo que recibe en la base. Una etapa sola no molesta. Pero si alimentas esa salida a la siguiente compuerta, y esa a otra, el nivel alto se va degradando hasta que deja de reconocerse como un `1`.
+
+Por eso estos bloques sirven para una etapa aislada, pero no para construir ecuaciones de varios niveles. Más abajo está [cuántas etapas aguanta](#por-qué-esto-acota-el-encadenamiento) antes de que el `1` deje de ser válido.
+
+## AND y OR robustas: NAND o NOR más inversor
+
+La solución es no pelear contra la topología: se construye primero la compuerta natural (con salida en colector) y luego se invierte con un tercer transistor.
+
+<Schematic
+  src="fundamentos/compuerta_and_transistores.svg"
+  alt="Compuerta AND de dos entradas formada por una etapa NAND seguida de un inversor"
+  caption="AND robusta: etapa NAND (Q1, Q2 en serie) seguida del inversor Q3."
+/>
+
+<Schematic
+  src="fundamentos/compuerta_or_transistores.svg"
+  alt="Compuerta OR de dos entradas formada por una etapa NOR seguida de un inversor"
+  caption="OR robusta: etapa NOR (Q1, Q2 en paralelo) seguida del inversor Q3."
+/>
+
+Como cada etapa toma su salida del colector, el nivel alto se regenera desde `V_CC` en lugar de arrastrar la caída de la etapa anterior. La señal sale tan limpia como entró, y se puede encadenar.
+
+El costo es un transistor más y su resistencia de base:
+
+| Compuerta | Transistores | Se puede encadenar |
+|---|:---:|:---:|
+| NOT | 1 | Sí |
+| NAND / NOR | 2 | Sí |
+| AND / OR directas | 2 | No, degrada el nivel |
+| AND / OR robustas | 3 | Sí |
+
+Esta es la razón práctica de que en lógica discreta se prefiera trabajar con NAND y NOR: son las que la topología entrega sin pagar extra.
+
+## Qué valores usar para las resistencias
+
+Si vas a montar estos circuitos a **5 V** con transistores `2N2222A`, puedes empezar con estos valores:
+
+| Resistencia | Valor típico | Rango práctico | Para qué sirve |
+|---|---:|---:|---|
+| `R_C` | **1 kΩ** | 470 Ω a 4,7 kΩ | Limita la corriente del colector y levanta la salida a `1` |
+| `R_B` | **10 kΩ** | 4,7 kΩ a 22 kΩ | Limita la corriente que entra a la base |
+| `R_PD` | **10 kΩ** | 10 kΩ a 100 kΩ | Evita que una entrada desconectada quede flotando |
+| `R_L` | **4,7 kΩ** | 1 kΩ a 10 kΩ | Lleva a `0` la salida de las versiones directas |
+
+No existe un único valor correcto. Para empezar en protoboard a 5 V, el trío recomendado es **`R_C = 1 kΩ`, `R_B = 10 kΩ` y `R_PD = 10 kΩ`**. Usar `R_B = 4,7 kΩ` deja más margen cuando una salida debe alimentar varias compuertas; usar `R_PD = 47 kΩ` reduce la corriente desperdiciada por el pull-down. La explicación y los cálculos están a continuación.
+
+Los cálculos que siguen usan `V_CC = 5 V`, un transistor tipo `2N2222A` y las dos aproximaciones habituales: `V_BE ≈ 0,7 V` cuando el transistor conduce, y `V_CE(sat) ≈ 0,2 V` cuando está saturado.
+
+### `R_C` fija la corriente de colector
+
+Cuando el transistor conduce, toda la corriente pasa por `R_C`:
+
+```text
+I_C = (V_CC − V_CE(sat)) / R_C = (5 − 0,2) / R_C
+```
+
+| `R_C` | Corriente en saturación |
+|---:|---:|
+| 470 Ω | 10,2 mA |
+| **1 kΩ** | **4,8 mA** |
+| 2,2 kΩ | 2,2 mA |
+
+El compromiso es el siguiente:
+
+- Una `R_C` **menor** puede alimentar más entradas y cargar capacitancias más rápido, pero consume más corriente mientras la salida está en `0`.
+- Una `R_C` **mayor** consume menos, pero la salida en `1` cae con mayor facilidad al conectarle otras compuertas.
+
+Para esta lógica discreta a 5 V, **1 kΩ** es un buen punto de partida: limita la corriente a unos **4,8 mA**.
+
+En una NAND con dos transistores en serie, las dos caídas de saturación suman aproximadamente `0,4 V`. Con `R_C = 1 kΩ` todavía circulan unos `4,6 mA`, así que **no hace falta bajar `R_C` a 680 Ω**. Hacerlo aumentaría la corriente que deben manejar los transistores y exigiría también más corriente de base.
+
+### `R_B` debe garantizar la saturación
+
+No basta con que el transistor empiece a conducir: debe entrar en **saturación** para que la salida baje cerca de `0,2 V`. Si recibe poca corriente de base, la salida puede quedarse en un voltaje intermedio y la siguiente etapa podría no reconocerla como `0`.
+
+Una regla de diseño sencilla es usar una **beta forzada entre 10 y 20**:
+
+```text
+β_forzada = I_C / I_B
+```
+
+Esto significa que la corriente de base debe estar aproximadamente entre `I_C / 20` e `I_C / 10`. Es más seguro diseñar así que usar la ganancia típica (`h_FE`) del transistor, porque cambia entre unidades y con la temperatura. Una beta forzada cercana a 10 da más margen; una cercana a 20 consume menos corriente de base.
+
+Con `R_C = 1 kΩ`, la corriente del colector es aproximadamente `4,8 mA`; por tanto, el intervalo de diseño es:
+
+```text
+I_B = 4,8 mA / 20 a 4,8 mA / 10 = 0,24 mA a 0,48 mA
+```
+
+Si la base recibe un `1` de 5 V desde una fuente que no se debilita y buscamos el extremo conservador, resulta:
+
+```text
+R_B ≤ (5 V − 0,7 V) / 0,48 mA ≈ 9 kΩ
+```
+
+El valor comercial de **10 kΩ** queda muy cerca y produce una beta forzada de alrededor de 11 si no se incluye el pull-down. Por eso es el valor típico. Se puede bajar a **4,7 kΩ** cuando se necesita más margen o una salida debe alimentar varias bases.
+
+Si además hay un pull-down de **10 kΩ**, cuando la entrada está en alto circulan aproximadamente `0,07 mA` por él:
+
+```text
+I_RPD = V_BE / R_PD = 0,7 V / 10 kΩ = 0,07 mA
+```
+
+Con una entrada directa de 5 V y `R_B = 10 kΩ`, quedan cerca de `0,36 mA` para la base. Es suficiente en el montaje habitual, aunque ofrece menos margen que `R_B = 4,7 kΩ`.
+
+### Cuántas entradas puede alimentar una salida
+
+Cuando una salida en colector alimenta otra compuerta, la corriente recorre dos resistencias: la `R_C` de la etapa anterior y la `R_B` de la siguiente. Si conecta varias entradas, todas comparten la corriente que puede entregar la misma `R_C`; por eso el nivel alto disminuye al añadir cargas.
+
+Con los valores recomendados —`R_C = 1 kΩ`, `R_B = 10 kΩ` y un `R_PD = 10 kΩ` en cada entrada— estos son los resultados aproximados:
+
+| Entradas conectadas | Nivel alto de la salida | Corriente efectiva por cada base | `I_C / I_B` de la etapa siguiente |
+|:---:|---:|---:|---:|
+| 1 | 4,61 V | 0,32 mA | 15,0 |
+| 2 | 4,28 V | 0,29 mA | 16,6 |
+| 3 | 4,01 V | 0,26 mA | 18,4 |
+| 4 | 3,77 V | 0,24 mA | 20,2 |
+
+Así se entiende la diferencia entre ambos valores:
+
+- **`R_B = 10 kΩ`**: permite alimentar tres entradas manteniendo la beta forzada dentro del intervalo de diseño. Una cuarta entrada queda justo en el límite y puede funcionar, pero ya no tiene mucho margen.
+- **`R_B = 4,7 kΩ`**: ofrece más margen cuando una salida debe alimentar cuatro entradas.
+
+Para una cantidad mayor de entradas, conviene añadir otra etapa inversora como búfer en lugar de seguir reduciendo `R_B`.
+
+:::tip[Valores de partida]
+A 5 V con `2N2222A`, los valores usados en la práctica —**`R_C = 1 kΩ`, `R_B = 10 kΩ` y `R_PD = 10 kΩ`**— son válidos. Si una salida debe alimentar varias bases, puedes bajar `R_B` a **4,7 kΩ**. Si quieres reducir el consumo del pull-down, puedes subir `R_PD` a **47 kΩ**. En las versiones directas usa **`R_L = 4,7 kΩ`**.
+:::
+
+### `R_L`, la resistencia de emisor
+
+Las versiones **directas** —AND y OR con la salida en el emisor, incluidas las de tres entradas— no llevan `Rc`, sino una resistencia `R_L` entre el emisor y masa. Hace dos cosas a la vez:
+
+1. **Define el `0`.** Cuando ningún transistor conduce, sin ella la salida se quedaría al aire. `R_L` la amarra a masa, igual que el pull-down de una entrada.
+2. **Fija la corriente de emisor** cuando sí conduce.
+
+| `R_L` | Corriente con la salida en 4,3 V | Constante `RC` (con ~20 pF) |
+|---:|---:|---:|
+| 1 kΩ | 4,30 mA | 20 ns |
+| 2,2 kΩ | 1,95 mA | 44 ns |
+| **4,7 kΩ** | **0,91 mA** | **94 ns** |
+| 10 kΩ | 0,43 mA | 200 ns |
+| 47 kΩ | 0,09 mA | 940 ns |
+
+El compromiso es distinto al de `R_C`. Aquí `R_L` es **lo único que baja la salida** cuando los transistores se cortan: si es muy grande, la transición de `1 → 0` se vuelve lenta; si es muy pequeña, desperdicia corriente mientras la salida está en alto.
+
+Para lógica lenta, **4,7 kΩ** es un buen punto: menos de 1 mA y una bajada de ~100 ns, de sobra para cualquier cosa que se monte a mano.
+
+### Por qué esto acota el encadenamiento
+
+Con los números encima se ve por qué la versión directa no se puede encadenar. Cada etapa entrega, como mucho, **su entrada menos una caída `V_BE`**:
+
+| Etapas encadenadas | Nivel alto | ¿Lo reconoce una entrada TTL? |
+|:---:|---:|:---|
+| 1 | 4,3 V | Sí |
+| 2 | 3,6 V | Sí |
+| 3 | 2,9 V | Sí, pero con poco margen |
+| 4 | 2,2 V | Al límite |
+| 5 | 1,5 V | **No** |
+
+Una entrada `74LS` necesita al menos **2,0 V** para leer un `1`. A la cuarta etapa quedan 0,2 V de margen, y a la quinta el `1` ya no existe.
+
+No hay valor de `R_L` que arregle esto: la caída no la produce la resistencia, sino la unión base-emisor de cada transistor. Por eso la versión robusta toma la salida en el colector, donde `R_C` la levanta hasta `V_CC` otra vez y el nivel se regenera en cada compuerta.
+
+### Si te equivocas
+
+- **`R_B` demasiado grande** → no satura. La salida en "bajo" se queda en 1 o 2 V y la etapa siguiente no la reconoce. Es el fallo más difícil de encontrar porque el circuito *parece* funcionar.
+- **`R_B` demasiado pequeña** → satura de sobra, pero desperdicia corriente de base y **tarda más en apagarse**, porque hay que evacuar la carga acumulada. En lógica lenta no molesta; a frecuencias altas sí.
+- **`R_C` demasiado pequeña** → consumo alto y riesgo de pasarse de la corriente admisible del transistor.
+- **`R_C` demasiado grande** → el nivel alto no tiene fuerza para alimentar las bases siguientes, y el `1` se cae al conectar más de una compuerta.
+- **`R_L` demasiado grande** → la salida tarda en bajar y puede quedarse a medio camino si algo le inyecta corriente de fuga.
+
+### El consumo, que es el límite real
+
+Cada etapa cuya salida está en `0` consume unos **4,8 mA** a través de `R_C`, además de la corriente de las bases que estén activadas. En una función de 18 etapas con aproximadamente la mitad en bajo serían unos **43 mA** solo por las resistencias de colector.
+
+Ese es el motivo de fondo por el que la lógica discreta no escala, más allá del número de componentes: cada compuerta que añades suma consumo fijo. Un `74LS08` completo consume del orden de unos pocos miliamperios para sus cuatro compuertas.
+
+:::note[Sobre lo que se compró en la Práctica 1]
+El presupuesto lista resistencias de 220 Ω y 1 kΩ. Usar **1 kΩ como `R_B` sí funciona**, pero entrega bastante más corriente de base de la necesaria. Los valores de **4,7 kΩ o 10 kΩ** reducen ese consumo; la elección depende de cuántas entradas deba alimentar cada salida.
+:::
+
+## Tres entradas
+
+Extender a tres entradas no cambia el principio, solo alarga la red: un transistor más en serie para AND, uno más en paralelo para OR. Cada una vuelve a tener sus dos versiones, con el mismo criterio de antes.
+
+### AND de 3 entradas
+
+<Schematic
+  src="fundamentos/compuerta_and_3_entradas.svg"
+  alt="Compuerta AND de tres entradas en versión directa"
+  caption="Versión directa: tres transistores en serie, salida en el emisor."
+/>
+
+<Schematic
+  src="fundamentos/compuerta_and_3_entradas_robusta.svg"
+  alt="Compuerta AND de tres entradas en versión robusta con inversor de salida"
+  caption="Versión robusta: la misma cadena en serie, más una etapa inversora que regenera el nivel."
+/>
+
+### OR de 3 entradas
+
+<Schematic
+  src="fundamentos/compuerta_or_3_entradas_simple.svg"
+  alt="Compuerta OR de tres entradas en versión directa"
+  caption="Versión directa: tres transistores en paralelo compartiendo la resistencia de carga."
+/>
+
+<Schematic
+  src="fundamentos/compuerta_or_3_entradas_robusta.svg"
+  alt="Compuerta OR de tres entradas en versión robusta con inversor de salida"
+  caption="Versión robusta: etapa NOR de tres ramas seguida del inversor."
+/>
+
+### NOR de 3 entradas
+
+<Schematic
+  src="fundamentos/compuerta_nor_3_entradas.svg"
+  alt="Compuerta NOR de tres entradas con transistores en paralelo"
+  caption="La salida cae a 0 si conduce cualquiera de los tres transistores."
+/>
+
+### Hasta dónde se puede estirar
+
+Con AND en serie hay un límite práctico: cada transistor apilado añade su propia caída, así que las cadenas muy largas terminan sin margen de tensión. En la práctica, tres es un número cómodo; más allá conviene descomponer la ecuación.
+
+## Cuándo dejar los transistores
+
+Armar compuertas con transistores enseña cómo funciona la lógica por dentro, pero deja de tener sentido apenas el circuito crece. La comparación es contundente:
+
+Una AND robusta de 2 entradas necesita **3 transistores** más sus resistencias. Un solo **`74LS08`** trae **4 compuertas AND** en un encapsulado DIP-14, y en la Práctica 2 costó `Q6.00`. Para las mismas 4 compuertas en discreto harían falta 12 transistores.
+
+Por eso la Práctica 1 terminó siendo híbrida: transistores donde el objetivo era demostrar la construcción, y TTL donde solo hacía falta que la lógica funcionara.
+
+## Pinouts de los integrados TTL
+
+Todos son DIP-14 y se muestran en vista superior. La muesca del encapsulado marca el lado del pin 1. En los seis, la alimentación va en los mismos pines: **`V_CC` en el 14 y tierra en el 7**.
+
+Cada diagrama incluye la tabla de verdad de la compuerta, para no tener que buscarla aparte.
+
+### 74LS04 — seis NOT
+
+<Schematic
+  src="fundamentos/pinout_74ls04.svg"
+  alt="Pinout del integrado 74LS04, seis inversores NOT"
+  caption="El único con seis compuertas, porque cada inversor usa un solo pin de entrada."
+/>
+
+### 74LS00 — cuatro NAND
+
+<Schematic
+  src="fundamentos/pinout_74ls00.svg"
+  alt="Pinout del integrado 74LS00, cuatro compuertas NAND de dos entradas"
+  caption="Cuatro NAND de dos entradas. Es la compuerta universal: con solo este integrado se puede construir cualquier función."
+/>
+
+### 74LS02 — cuatro NOR
+
+<Schematic
+  src="fundamentos/pinout_74ls02.svg"
+  alt="Pinout del integrado 74LS02, cuatro compuertas NOR de dos entradas"
+  caption="Cuatro NOR de dos entradas, con la numeración de pines invertida respecto al resto."
+/>
+
+Este merece atención aparte: a diferencia de los demás, **su pin de salida viene antes que los de entrada** en cada compuerta. Cablearlo asumiendo el orden del `74LS00` es un error fácil de cometer y difícil de encontrar, porque el circuito queda físicamente bien armado pero lógicamente al revés.
+
+### 74LS08 — cuatro AND
+
+<Schematic
+  src="fundamentos/pinout_74ls08.svg"
+  alt="Pinout del integrado 74LS08, cuatro compuertas AND de dos entradas"
+  caption="Cuatro AND de dos entradas: el reemplazo directo de doce transistores."
+/>
+
+### 74LS32 — cuatro OR
+
+<Schematic
+  src="fundamentos/pinout_74ls32.svg"
+  alt="Pinout del integrado 74LS32, cuatro compuertas OR de dos entradas"
+  caption="Cuatro OR de dos entradas."
+/>
+
+### 74LS86 — cuatro XOR
+
+<Schematic
+  src="fundamentos/pinout_74ls86.svg"
+  alt="Pinout del integrado 74LS86, cuatro compuertas XOR de dos entradas"
+  caption="Cuatro XOR de dos entradas. No tiene equivalente directo en transistores discretos tan simple como las demás."
+/>
+
+## Errores que cuestan tiempo
+
+- **Entradas flotando.** Un DIP switch abierto no es un `0`; es indefinido. Usa pull-down en la base.
+- **Confundir el orden de pines del `74LS02`** con el del resto de la familia.
+- **Encadenar compuertas de salida en emisor.** Funcionan sueltas y fallan integradas, que es el peor momento para descubrirlo.
+- **Olvidar alimentar el integrado.** El pin 14 va a `V_CC` y el 7 a tierra; no aparecen dibujados junto a cada compuerta.
+- **Alimentación insuficiente** al montar varios TTL a la vez: produce fallos intermitentes que parecen errores de diseño.
+
+## Dónde se aplica esto
+
+La [Práctica 1](../../practicas/practica-1/) usa estos bloques para implementar las ecuaciones de cada segmento del display de 7 segmentos, y muestra qué compuerta corresponde a cada término producto de las ecuaciones simplificadas por Karnaugh.
+
+Para entender qué hay del otro lado de esas compuertas —y por qué la mitad del diseño se hace en SOP y la otra mitad en POS—, ver [Displays de 7 segmentos](../displays-7-segmentos/).
