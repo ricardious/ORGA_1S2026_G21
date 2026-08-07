@@ -1,0 +1,95 @@
+---
+title: Calculadora de Karnaugh
+description: Herramienta interactiva que simplifica funciones de 2 a 5 variables y muestra el resultado como mapa, tabla de verdad y circuito lógico simulable.
+---
+
+import KMapSolver from '../../../components/KMapSolver.astro';
+
+Marca qué combinaciones valen `1` y la calculadora devuelve la ecuación mínima, con las agrupaciones pintadas sobre el mapa y el circuito que las implementa.
+
+El método para hacerlo a mano está en [Mapas de Karnaugh](../../fundamentos/mapas-de-karnaugh/). Esto sirve para **comprobar el resultado** una vez lo tienes.
+
+<KMapSolver />
+
+## Las tres vistas
+
+Son los mismos datos presentados de tres formas, y se puede editar desde cualquiera de ellas:
+
+- **Mapa** — la cuadrícula en orden Gray, con las agrupaciones de la solución resaltadas en color. El número pequeño de cada celda es su índice de mintérmino.
+- **Tabla de verdad** — todas las combinaciones en orden, con la columna `ƒ` editable. Útil cuando el enunciado te da la tabla en vez del mapa.
+- **Circuito** — la implementación de la expresión mínima, con un selector para verla como **compuertas** o como **puros transistores**.
+
+## Controles
+
+- **Forma**: suma de productos (agrupa los unos) o producto de sumas (agrupa los ceros). Son cálculos independientes, no uno la negación del otro.
+- **Variables**: de 2 a 5. Con cinco, el mapa se parte en dos cuadrículas —una para `A = 0` y otra para `A = 1`— que también son adyacentes entre sí: las celdas en la misma posición de ambas cuadrículas se pueden agrupar.
+- **Nombres**: por defecto `A` a `E`, pero se pueden cambiar para que coincidan con los de tu enunciado.
+- **Rellenar**: pone todas las celdas a `0`, `1` o `X` de golpe, o genera una función aleatoria para practicar.
+
+### Las celdas `X`
+
+Una `X` marca una combinación que **nunca va a ocurrir**, o cuyo resultado da igual. El algoritmo la trata como comodín: la usa si le sirve para agrandar un grupo, y la ignora si no.
+
+Aparecen cuando el número de combinaciones válidas no es potencia de dos. El caso típico son los dígitos decimales sobre 4 bits: las combinaciones `1010` a `1111` no representan ningún dígito, así que se marcan como `X` y la ecuación sale bastante más corta.
+
+En la [Práctica 1](../../practicas/practica-1/) no hay ninguna: con 3 bits hay ocho combinaciones y las ocho están asignadas a un carácter.
+
+### Por qué todas las compuertas son de dos entradas
+
+Un `74LS08` trae cuatro AND **de dos entradas**; no existe una de tres en ese encapsulado. Así que un término como `A'B'C` no se monta con una compuerta de tres entradas: se monta con **dos AND encadenadas**.
+
+El circuito lo dibuja así a propósito, para que el número de compuertas que ves sea el que realmente vas a necesitar comprar y cablear. Un término de `k` literales cuesta `k − 1` compuertas, y unir `m` términos cuesta otras `m − 1`.
+
+Las negaciones tampoco son gratis: un `A'` necesita un **inversor** del `74LS04`, y el circuito lo dibuja como tal en vez de con el círculo abreviado. Eso sí, el inversor se **comparte**: si `A'` aparece en seis términos sigue siendo uno solo, con su salida repartida por un bus. Por eso una variable usada en directo y negada aparece como una única entrada que se bifurca, no como dos.
+
+Los árboles se construyen **equilibrados** en vez de en cascada. Con cuatro literales, dos compuertas en paralelo alimentando a una tercera dan profundidad 2, mientras que encadenarlas una tras otra da profundidad 3: menos niveles significa menos retardo acumulado.
+
+### Nivel de transistores
+
+El botón **Transistores** redibuja el mismo circuito sin usar ni un solo integrado, solo NPN y resistencias. Cada compuerta se sustituye por su **versión robusta**: etapa NAND (dos transistores en serie) o NOR (en paralelo) con la salida en el colector, seguida de un inversor.
+
+Es importante que sea esa y no la directa. La versión corta —salida en el emisor— gasta dos transistores en vez de tres, pero pierde unos `0,7 V` de nivel alto en cada etapa, así que al encadenarla el `1` se degrada hasta dejar de reconocerse. Con la salida en el colector el nivel se regenera desde `V_CC` en cada compuerta, y el circuito se puede encadenar tan profundo como haga falta. Está explicado en [Compuertas lógicas con transistores](../../fundamentos/compuertas-transistorizadas/).
+
+Las resistencias aparecen como `R_B` y `R_C` sin valor, porque dependen de la tensión de alimentación y del transistor; el dimensionado está en [Qué valores usar para las resistencias](../../fundamentos/compuertas-transistorizadas/#qué-valores-usar-para-las-resistencias).
+
+Sobre el circuito aparece el **inventario de componentes**: cuántos transistores y resistencias hacen falta. Sale caro rápido —cada compuerta son 3 transistores y 5 resistencias— y esa es justamente la razón por la que a partir de cierto tamaño se pasa a TTL.
+
+### El simulador
+
+En la pestaña de circuito, cada variable tiene un botón que alterna su valor. Al cambiarlo se resaltan los cables y las compuertas que quedan a `1`, y se ve qué término concreto está activando la salida.
+
+Es la forma más rápida de convencerse de que la expresión mínima hace lo mismo que la tabla de verdad de partida.
+
+## Sobre el resultado
+
+**Puede haber varias soluciones igual de buenas.** Cuando dos coberturas usan el mismo número de términos y de literales, ninguna es mejor; la calculadora devuelve una de ellas. Si tu resultado a mano no coincide, cuenta términos y literales antes de darlo por erróneo.
+
+**El orden de los términos no significa nada.** `AB' + AC` y `AC + AB'` son la misma expresión.
+
+**La POS no es la negación de la SOP.** Se calcula por separado agrupando los ceros — es la trampa que describe la [página del método](../../fundamentos/mapas-de-karnaugh/#la-trampa-negar-la-sop-no-da-la-pos).
+
+:::tip[Úsala para comprobar, no para saltarte el paso]
+En un examen no vas a tener la calculadora. Resuelve el mapa a mano, escribe tu ecuación y solo entonces contrástala aquí. Cuando no coincida, lo interesante es **por qué**: casi siempre es un grupo que se podía agrandar o un envolvimiento de bordes que se pasó por alto.
+:::
+
+## Cómo funciona por dentro
+
+Con cinco variables o menos el problema es lo bastante pequeño para resolverlo de forma exacta, así que la solución es **la mínima real**, no una aproximación.
+
+1. **Enumera todos los cubos posibles.** Cada variable puede estar fijada a `0`, a `1`, o libre, lo que da `3ⁿ` combinaciones: 27 con tres variables, 243 con cinco.
+2. **Se queda con los implicantes**: los cubos que solo tocan celdas con `1` o con `X`, y que cubren al menos un `1`.
+3. **Filtra los primos.** Un implicante es primo si al liberar cualquiera de sus variables fijadas deja de serlo, o sea si no se puede agrandar más.
+4. **Busca la cobertura mínima.** Marca primero los primos **esenciales** —los únicos capaces de cubrir alguna celda— y para el resto ramifica sobre la celda más restringida, podando en cuanto una rama ya no puede mejorar a la mejor solución encontrada.
+
+Ese último paso es el que garantiza que el resultado sea mínimo y no solo correcto. Enumerar combinaciones a lo bruto funcionaba con cuatro variables, pero con cinco se dispara: de ahí la ramificación con poda.
+
+### Comprobaciones
+
+El motor se validó contra:
+
+- Las **ecuaciones publicadas de la Práctica 1**, que reproduce exactamente en SOP y en POS.
+- **Todas las funciones posibles de 2 y 3 variables** (16 y 256): la expresión devuelta reproduce la tabla de verdad original, evaluada literal por literal.
+- **Muestras de funciones de 4 y 5 variables**, comprobando lo mismo, más que la cobertura sea irredundante: quitar cualquier término la rompe.
+- **Casos con celdas `X`**, verificando que nunca se apoya en un `0` ni deja un `1` sin cubrir.
+
+Y la interfaz se probó sobre el HTML ya compilado: cambio de variables y de forma, renombrado, edición desde el mapa y desde la tabla, cambio de pestañas y simulación del circuito.

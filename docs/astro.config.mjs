@@ -94,6 +94,10 @@ export default defineConfig({
           autogenerate: { directory: "fundamentos" },
         },
         {
+          label: "Calculadoras",
+          autogenerate: { directory: "calculadoras" },
+        },
+        {
           label: "Prácticas",
           items: [
             { label: "Vista general", link: "/practicas/" },

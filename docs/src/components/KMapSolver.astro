@@ -1,0 +1,1489 @@
+---
+/**
+ * Calculadora interactiva de mapas de Karnaugh (2 a 5 variables).
+ *
+ * Tres vistas de los mismos datos —mapa, tabla de verdad y circuito—, más un
+ * simulador que permite mover las entradas y ver qué compuertas se activan.
+ *
+ * La simplificación es **exacta**, no heurística: se enumeran todos los cubos
+ * (3^n, como mucho 243), se filtran los implicantes primos y se busca la
+ * cobertura mínima real por ramificación y poda.
+ *
+ * Todo corre en el navegador; la página sigue siendo estática.
+ */
+
+// El aviso sin JavaScript enlaza al método manual. Se resuelve contra el `base`
+// del sitio en vez de con una ruta relativa, para que el componente pueda
+// colocarse en cualquier página sin que el enlace se rompa.
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+{/* `not-content` desactiva los estilos de markdown de Starlight, que si no
+    sobrescriben tablas, botones y campos con su propia tipografía y espaciado. */}
+<div class="solver not-content" data-kmap-solver>
+  <div class="expr-bar">
+    <span class="expr-label">ƒ =</span>
+    <span class="expr-value" data-expr>0</span>
+  </div>
+
+  <div class="controls">
+    <label class="field">
+      <span>Forma</span>
+      <select data-mode>
+        <option value="sop">Suma de productos</option>
+        <option value="pos">Producto de sumas</option>
+      </select>
+    </label>
+
+    <label class="field">
+      <span>Variables</span>
+      <select data-vars>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4" selected>4</option>
+        <option value="5">5</option>
+      </select>
+    </label>
+
+    <div class="field">
+      <span>Nombres</span>
+      <div class="names" data-names></div>
+    </div>
+
+    <div class="field">
+      <span>Rellenar</span>
+      <div class="group">
+        <button type="button" data-fill="0">0</button>
+        <button type="button" data-fill="1">1</button>
+        <button type="button" data-fill="2">X</button>
+        <button type="button" data-fill="random">Aleatorio</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" aria-selected="true" data-tab="map">Mapa</button>
+    <button type="button" role="tab" aria-selected="false" data-tab="table">Tabla de verdad</button>
+    <button type="button" role="tab" aria-selected="false" data-tab="circuit">Circuito</button>
+  </div>
+
+  <noscript>
+    <p class="hint">
+      La calculadora necesita JavaScript. El método para resolver los mapas a mano
+      está en <a href={`${base}/fundamentos/mapas-de-karnaugh/`}>Mapas de Karnaugh</a>.
+    </p>
+  </noscript>
+
+  <div class="panel" data-panel="map">
+    <p class="hint">
+      Haz clic en una celda para recorrer <code>0</code> → <code>1</code> →
+      <code>X</code>. La <code>X</code> marca una combinación que nunca ocurre.
+    </p>
+    <div class="scroll" data-maps></div>
+    <ul class="legend" data-groups></ul>
+    <p class="notation" data-notation></p>
+  </div>
+
+  <div class="panel" data-panel="table" hidden>
+    <p class="hint">Haz clic en la columna <code>ƒ</code> para cambiar el valor.</p>
+    <div class="scroll"><table data-table></table></div>
+  </div>
+
+  <div class="panel" data-panel="circuit" hidden>
+    <p class="hint">
+      Circuito de dos niveles correspondiente a la expresión mínima. Mueve las
+      entradas para ver qué compuertas se activan.
+    </p>
+    <div class="level">
+      <span>Nivel:</span>
+      <div class="group">
+        <button type="button" data-level="gates" aria-pressed="true">Compuertas</button>
+        <button type="button" data-level="transistors" aria-pressed="false">Transistores</button>
+      </div>
+    </div>
+    <p class="bom" data-bom></p>
+    <div class="sim" data-sim></div>
+    <div class="scroll" data-circuit></div>
+  </div>
+</div>
+
+<script>
+  const PALETTE = [
+    "#2563EB", "#DC2626", "#059669", "#D97706",
+    "#7C3AED", "#0891B2", "#BE185D", "#4D7C0F",
+  ];
+  const VALUE_LABEL = ["0", "1", "X"];
+  const DEFAULT_NAMES = ["A", "B", "C", "D", "E"];
+  const GRAY2 = ["00", "01", "11", "10"];
+  const GRAY1 = ["0", "1"];
+
+  /* ---------- motor de simplificación ---------- */
+
+  function allCubes(n) {
+    let cubes = [[]];
+    for (let i = 0; i < n; i++) {
+      const next = [];
+      for (const cube of cubes) next.push([...cube, 0], [...cube, 1], [...cube, null]);
+      cubes = next;
+    }
+    return cubes;
+  }
+
+  function cubeMinterms(cube) {
+    let list = [0];
+    for (const bit of cube) {
+      const next = [];
+      for (const value of list) {
+        if (bit === null) next.push(value * 2, value * 2 + 1);
+        else next.push(value * 2 + bit);
+      }
+      list = next;
+    }
+    return list;
+  }
+
+  const fixedCount = (cube) => cube.filter((b) => b !== null).length;
+
+  function primeImplicants(values, n, target) {
+    const allowed = new Set();
+    const wanted = new Set();
+    values.forEach((v, i) => {
+      if (v === 2) allowed.add(i);
+      else if (v === target) {
+        allowed.add(i);
+        wanted.add(i);
+      }
+    });
+    if (wanted.size === 0) return { primes: [], wanted };
+
+    const isImplicant = (cube) => {
+      const cells = cubeMinterms(cube);
+      return cells.every((m) => allowed.has(m)) && cells.some((m) => wanted.has(m));
+    };
+
+    const implicants = allCubes(n).filter(isImplicant);
+    const primes = implicants.filter((cube) =>
+      cube.every((bit, i) => {
+        if (bit === null) return true;
+        const bigger = [...cube];
+        bigger[i] = null;
+        return !isImplicant(bigger);
+      }),
+    );
+    return { primes, wanted };
+  }
+
+  /**
+   * Cobertura mínima exacta. Enumerar combinaciones no escala a cinco variables,
+   * así que en cada paso se ramifica sobre la celda con menos primos capaces de
+   * cubrirla: cualquier solución debe usar uno de ellos.
+   */
+  function minimalCover(primes, wanted) {
+    if (wanted.size === 0) return [];
+    const coverage = primes.map(
+      (cube) => new Set(cubeMinterms(cube).filter((m) => wanted.has(m))),
+    );
+
+    const essential = [];
+    for (const cell of wanted) {
+      const owners = coverage.map((s, i) => (s.has(cell) ? i : -1)).filter((i) => i >= 0);
+      if (owners.length === 1 && !essential.includes(owners[0])) essential.push(owners[0]);
+    }
+
+    const remaining = new Set(wanted);
+    essential.forEach((i) => coverage[i].forEach((m) => remaining.delete(m)));
+
+    const literals = (list) => list.reduce((sum, i) => sum + fixedCount(primes[i]), 0);
+    let best = null;
+
+    const search = (left, chosen) => {
+      if (best !== null && chosen.length >= best.length && literals(chosen) >= literals(best)) return;
+      if (left.size === 0) {
+        if (
+          best === null ||
+          chosen.length < best.length ||
+          (chosen.length === best.length && literals(chosen) < literals(best))
+        ) {
+          best = [...chosen];
+        }
+        return;
+      }
+      let options = null;
+      for (const cell of left) {
+        const owners = coverage.map((s, i) => (s.has(cell) ? i : -1)).filter((i) => i >= 0);
+        if (options === null || owners.length < options.length) options = owners;
+        if (owners.length <= 1) break;
+      }
+      if (options.length === 0) return;
+      options.sort((a, b) => coverage[b].size - coverage[a].size);
+      for (const index of options) {
+        const next = new Set(left);
+        coverage[index].forEach((m) => next.delete(m));
+        search(next, [...chosen, index]);
+      }
+    };
+
+    search(remaining, []);
+    return [...essential, ...(best ?? [])].map((i) => primes[i]);
+  }
+
+  function cubeToText(cube, names, mode) {
+    const parts = [];
+    cube.forEach((bit, i) => {
+      if (bit === null) return;
+      parts.push(names[i] + ((mode === "sop" ? bit === 0 : bit === 1) ? "'" : ""));
+    });
+    if (parts.length === 0) return mode === "sop" ? "1" : "0";
+    return mode === "sop" ? parts.join("") : `(${parts.join(" + ")})`;
+  }
+
+  function solve(values, n, names, mode) {
+    const target = mode === "sop" ? 1 : 0;
+    const { primes, wanted } = primeImplicants(values, n, target);
+    if (wanted.size === 0) {
+      return { expr: mode === "sop" ? "0" : "1", groups: [], indices: [], constant: true };
+    }
+    const groups = minimalCover(primes, wanted).map((cube) => ({
+      cube,
+      cells: cubeMinterms(cube),
+      text: cubeToText(cube, names, mode),
+    }));
+    const expr =
+      mode === "sop"
+        ? groups.map((g) => g.text).join(" + ")
+        : groups.map((g) => g.text).join("");
+    return { expr, groups, indices: [...wanted].sort((a, b) => a - b), constant: false };
+  }
+
+  /* ---------- disposición del mapa según el número de variables ---------- */
+
+  function layoutFor(n) {
+    if (n === 2) return { pageBits: 0, rows: GRAY1, cols: GRAY1, rowVars: [0], colVars: [1] };
+    if (n === 3) return { pageBits: 0, rows: GRAY1, cols: GRAY2, rowVars: [0], colVars: [1, 2] };
+    if (n === 4) return { pageBits: 0, rows: GRAY2, cols: GRAY2, rowVars: [0, 1], colVars: [2, 3] };
+    return { pageBits: 1, rows: GRAY2, cols: GRAY2, rowVars: [1, 2], colVars: [3, 4] };
+  }
+
+  /* ---------- dibujo del circuito ---------- */
+
+  const GATE_H = 46;
+  const GATE_W = 52;
+
+  /**
+   * Contornos de compuerta extraídos de `schemdraw.logic`, normalizados a una
+   * caja de 52x46. Se copian como constantes porque schemdraw es Python y no
+   * puede ejecutarse en el navegador, pero así el circuito de la calculadora
+   * conserva el mismo trazo que los diagramas estáticos del sitio.
+   */
+  const GATE_PATH = {
+    and: "M29.4,46.0 L30.8,46.0 L32.3,45.8 L33.7,45.6 L35.1,45.2 L36.5,44.8 L37.9,44.3 L39.2,43.7 L40.5,43.0 L41.7,42.3 L42.9,41.4 L44.1,40.5 L45.1,39.5 L46.1,38.5 L47.1,37.3 L47.9,36.2 L48.7,34.9 L49.4,33.6 L50.1,32.3 L50.6,30.9 L51.1,29.5 L51.4,28.1 L51.7,26.7 L51.9,25.2 L52.0,23.7 L52.0,22.3 L51.9,20.8 L51.7,19.3 L51.4,17.9 L51.1,16.5 L50.6,15.1 L50.1,13.7 L49.4,12.4 L48.7,11.1 L47.9,9.8 L47.1,8.7 L46.1,7.5 L45.1,6.5 L44.1,5.5 L42.9,4.6 L41.7,3.7 L40.5,3.0 L39.2,2.3 L37.9,1.7 L36.5,1.2 L35.1,0.8 L33.7,0.4 L32.3,0.2 L30.8,0.0 L29.4,0.0 L0.0,0.0 L0.0,23.0 L0.0,46.0 L29.4,46.0 Z",
+    or: "M0.0,46.0 L21.7,46.0 L22.9,46.0 L24.1,45.8 L25.4,45.7 L26.6,45.4 L27.9,45.0 L29.1,44.6 L30.3,44.1 L31.6,43.5 L32.8,42.9 L34.0,42.2 L35.3,41.4 L36.5,40.5 L37.8,39.5 L39.0,38.5 L40.2,37.4 L41.5,36.2 L42.7,34.9 L44.0,33.6 L45.2,32.2 L46.4,30.7 L47.7,29.1 L48.9,27.5 L50.1,25.7 L51.4,23.9 L51.4,22.1 L50.1,20.3 L48.9,18.5 L47.7,16.9 L46.4,15.3 L45.2,13.8 L44.0,12.4 L42.7,11.1 L41.5,9.8 L40.2,8.6 L39.0,7.5 L37.8,6.5 L36.5,5.5 L35.3,4.6 L34.0,3.8 L32.8,3.1 L31.6,2.5 L30.3,1.9 L29.1,1.4 L27.9,1.0 L26.6,0.6 L25.4,0.3 L24.1,0.2 L22.9,0.0 L21.7,0.0 L0.0,0.0 L1.6,1.9 L3.1,3.8 L4.5,5.6 L5.7,7.5 L6.8,9.4 L7.7,11.3 L8.5,13.1 L9.2,15.0 L9.7,16.9 L10.1,18.8 L10.3,20.7 L10.4,22.5 L10.4,24.4 L10.2,26.3 L9.9,28.2 L9.4,30.0 L8.8,31.9 L8.1,33.8 L7.2,35.7 L6.2,37.6 L5.1,39.4 L3.8,41.3 L2.4,43.2 L0.8,45.1 L0.0,46.0 Z",
+  };
+
+  /** Compuerta colocada mediante traslación, para no recalcular el contorno. */
+  function gate(kind, x, y, cls) {
+    return `<g transform="translate(${x},${y})"><path d="${GATE_PATH[kind]}" class="${cls}"/></g>`;
+  }
+
+  /**
+   * Árbol de expresión con compuertas de **dos entradas**.
+   *
+   * Un término de k literales no se dibuja como una única compuerta de k
+   * entradas: los integrados reales (`74LS08`, `74LS32`) son de dos, así que se
+   * descompone en un árbol equilibrado de k-1 compuertas, que es lo que
+   * realmente habría que montar. Equilibrado y no en cascada porque reduce la
+   * profundidad, y con ella el retardo acumulado.
+   */
+  function pairTree(nodes, kind) {
+    let level = nodes;
+    while (level.length > 1) {
+      const next = [];
+      for (let i = 0; i < level.length; i += 2) {
+        next.push(
+          i + 1 < level.length
+            ? { type: "gate", kind, children: [level[i], level[i + 1]] }
+            : level[i],
+        );
+      }
+      level = next;
+    }
+    return level[0];
+  }
+
+  function expressionTree(groups, mode, names) {
+    const inner = mode === "sop" ? "and" : "or";
+    const outer = mode === "sop" ? "or" : "and";
+    const terms = groups.map((group) => {
+      const literals = group.cube
+        .map((bit, index) => {
+          if (bit === null) return null;
+          const negated = mode === "sop" ? bit === 0 : bit === 1;
+          return { type: "lit", index, bit, negated, label: names[index] + (negated ? "'" : "") };
+        })
+        .filter(Boolean);
+      return pairTree(literals, inner);
+    });
+    return pairTree(terms, outer);
+  }
+
+  const heightOf = (node) =>
+    node.type === "lit" ? 0 : 1 + Math.max(...node.children.map(heightOf));
+
+  /** Valor de un nodo para una combinación concreta de entradas. */
+  function evaluate(node, sim, mode) {
+    if (node.type === "lit") {
+      const matches = sim[node.index] === node.bit;
+      return (mode === "sop" ? matches : !matches) ? 1 : 0;
+    }
+    const [a, b] = node.children.map((child) => evaluate(child, sim, mode));
+    return node.kind === "and" ? (a && b ? 1 : 0) : a || b ? 1 : 0;
+  }
+
+  const NOT_W = 34;
+  const NOT_H = 30;
+  /** Inversor de `schemdraw.logic`: triángulo más burbuja, a la misma escala. */
+  const NOT_PATH = "M0,0 L24.8,15 L0,30 Z";
+  const NOT_BUBBLE = { cx: 29.4, cy: 15, r: 3.6 };
+
+  const LEAF_GAP = 40;
+  const COL_GAP = 46;
+  const ROW_H = 40;
+  const SIG_ROW = 40;  // mayor que NOT_H para que los inversores no se solapen
+  const BUS_GAP = 14;
+  const LABEL_X = 26;
+
+  /* ---------- nivel de transistores ---------- */
+
+  const TR_S = 44; // escala del símbolo NPN de schemdraw
+  const TR_DX = 0.752 * TR_S; // base -> colector/emisor en horizontal
+  const TR_DY = 0.697 * TR_S; // base -> colector/emisor en vertical
+
+  const TR_BLOCK = { w: 306, h: 244, vccY: 46 };
+  // Filas de entrada del bloque: coinciden con las bases de Q1 y Q2.
+  const TR_IN_Y = [TR_BLOCK.vccY + 30 + TR_DY, TR_BLOCK.vccY + 30 + 3 * TR_DY];
+
+  /**
+   * Transistor NPN con la base en (bx, by), con la geometría de
+   * `schemdraw.elements.BjtNpn`. La punta de flecha se calcula sobre la
+   * dirección real del emisor en vez de colocarla a ojo.
+   */
+  function transistor(bx, by, cls) {
+    const p = (x, y) => `${(bx + x * TR_S).toFixed(1)},${(by - y * TR_S).toFixed(1)}`;
+
+    // Vector unitario a lo largo del terminal de emisor.
+    const dx = (0.752 - 0.367) * TR_S;
+    const dy = (0.513 - 0.183) * TR_S;
+    const len = Math.hypot(dx, dy);
+    const [ux, uy] = [dx / len, dy / len];
+    const [nx, ny] = [-uy, ux];
+    // schemdraw dibuja la punta al final del terminal, no a media diagonal.
+    const tipX = bx + 0.752 * TR_S;
+    const tipY = by + 0.513 * TR_S;
+    const back = 0.2 * TR_S;
+    const half = 0.07 * TR_S;
+    const arrow =
+      `M${tipX.toFixed(1)},${tipY.toFixed(1)} ` +
+      `L${(tipX - ux * back + nx * half).toFixed(1)},${(tipY - uy * back + ny * half).toFixed(1)} ` +
+      `L${(tipX - ux * back - nx * half).toFixed(1)},${(tipY - uy * back - ny * half).toFixed(1)} Z`;
+
+    return (
+      `<circle cx="${(bx + 0.55 * TR_S).toFixed(1)}" cy="${by.toFixed(1)}" r="${(0.55 * TR_S).toFixed(1)}" class="tr-body${cls}"/>` +
+      `<path d="M${p(0, 0)} L${p(0.367, 0)}" class="wire${cls}"/>` +
+      `<path d="M${p(0.367, 0.367)} L${p(0.367, -0.367)}" class="tr-bar${cls}"/>` +
+      `<path d="M${p(0.367, 0.183)} L${p(0.752, 0.513)} L${p(0.752, 0.697)}" class="wire${cls}"/>` +
+      `<path d="M${p(0.367, -0.183)} L${p(0.752, -0.513)} L${p(0.752, -0.697)}" class="wire${cls}"/>` +
+      `<path d="${arrow}" class="tr-arrow${cls}"/>`
+    );
+  }
+
+  /** Resistencia IEC (rectángulo), como en los diagramas del sitio. */
+  function resistor(x, y, len, vertical, label, cls) {
+    const t = 13;
+    const bodyLen = Math.min(24, Math.max(16, len - 10));
+    const body = vertical
+      ? `<rect x="${(x - t / 2).toFixed(1)}" y="${(y + (len - bodyLen) / 2).toFixed(1)}" width="${t}" height="${bodyLen}" class="tr-res${cls}"/>`
+      : `<rect x="${(x + (len - bodyLen) / 2).toFixed(1)}" y="${(y - t / 2).toFixed(1)}" width="${bodyLen}" height="${t}" class="tr-res${cls}"/>`;
+    const line = vertical
+      ? `<path d="M${x.toFixed(1)},${y.toFixed(1)} V${(y + len).toFixed(1)}" class="wire${cls}"/>`
+      : `<path d="M${x.toFixed(1)},${y.toFixed(1)} H${(x + len).toFixed(1)}" class="wire${cls}"/>`;
+    // La etiqueta va al lado contrario del cuerpo para no pisar cables.
+    const text = label
+      ? vertical
+        ? `<text x="${(x - t / 2 - 4).toFixed(1)}" y="${(y + len / 2 + 3.5).toFixed(1)}" class="tr-label end">${label}</text>`
+        : `<text x="${(x + len / 2).toFixed(1)}" y="${(y - t / 2 - 5).toFixed(1)}" class="tr-label mid">${label}</text>`
+      : "";
+    return line + body + text;
+  }
+
+  /**
+   * Alimentación y tierra como **símbolos**, no como rieles.
+   *
+   * Antes cada bloque dibujaba sus propios rieles discontinuos, que quedaban
+   * sueltos y sin conectar entre sí: no había forma de saber si la tierra de un
+   * bloque era el mismo nodo que la de otro. Con los símbolos estándar la
+   * convención lo resuelve —todas las tierras son el mismo nodo— y además
+   * coinciden con los diagramas de la sección de Fundamentos.
+   */
+  function vddSymbol(x, y, cls) {
+    const stem = 0.4 * TR_S;
+    const bar = 0.188 * TR_S;
+    return (
+      `<path d="M${x},${y} V${(y - stem).toFixed(1)} M${(x - bar).toFixed(1)},${(y - stem).toFixed(1)} H${(x + bar).toFixed(1)}" class="wire${cls}"/>` +
+      `<text x="${x}" y="${(y - stem - 6).toFixed(1)}" class="tr-label mid">Vcc</text>`
+    );
+  }
+
+  function gndSymbol(x, y, cls) {
+    const bar = (w, dy) =>
+      `M${(x - w * TR_S).toFixed(1)},${(y + dy * TR_S).toFixed(1)} H${(x + w * TR_S).toFixed(1)}`;
+    return `<path d="M${x},${y} V${(y + 0.4 * TR_S).toFixed(1)} ${bar(0.25, 0.4)} ${bar(0.175, 0.52)} ${bar(0.05, 0.64)}" class="wire${cls}"/>`;
+  }
+
+  /**
+   * Compuerta de dos entradas en su versión **robusta**: etapa NAND (serie) o
+   * NOR (paralelo) con la salida en el colector, seguida de un inversor que
+   * regenera el nivel desde Vcc. Es la única topología encadenable: la directa,
+   * con salida en el emisor, pierde ~0,7 V por etapa.
+   */
+  function transistorGate(kind, cls, outY) {
+    const { w, vccY } = TR_BLOCK;
+    const nodeX = 122;
+    const stageTop = vccY + 30;
+    let s = "";
+
+    s += vddSymbol(nodeX, vccY, cls);
+    s += resistor(nodeX, vccY, 30, true, "Rc", cls);
+    s += `<circle cx="${nodeX}" cy="${stageTop}" r="2.6" class="junction${cls}"/>`;
+
+    const q1 = [nodeX - TR_DX, TR_IN_Y[0]];
+    s += transistor(q1[0], q1[1], cls);
+    s += resistor(12, TR_IN_Y[0], q1[0] - 12, false, "Rb", cls);
+
+    if (kind === "and") {
+      // Serie: el emisor de Q1 es el colector de Q2. Solo conducen los dos juntos.
+      const q2 = [nodeX - TR_DX, TR_IN_Y[1]];
+      s += transistor(q2[0], q2[1], cls);
+      s += gndSymbol(nodeX, q2[1] + TR_DY, cls);
+      s += resistor(12, TR_IN_Y[1], q2[0] - 12, false, "Rb", cls);
+    } else {
+      // Paralelo: cada colector sube al nodo y cada emisor tiene su propia tierra.
+      s += gndSymbol(nodeX, q1[1] + TR_DY, cls);
+      const q2x = nodeX - TR_DX + 52;
+      s += transistor(q2x, TR_IN_Y[1], cls);
+      const c2x = q2x + TR_DX;
+      s += `<path d="M${c2x},${TR_IN_Y[1] - TR_DY} V${stageTop} H${nodeX}" class="wire${cls}"/>`;
+      s += gndSymbol(c2x, TR_IN_Y[1] + TR_DY, cls);
+      s += resistor(12, TR_IN_Y[1], q2x - 12, false, "Rb", cls);
+    }
+
+    // Inversor de salida.
+    const invX = 230;
+    const invY = TR_IN_Y[0] + 18;
+    s += `<path d="M${nodeX},${stageTop} H186" class="wire${cls}"/>`;
+    s += resistor(186, stageTop, 30, false, "Rb", cls);
+    s += `<path d="M216,${stageTop} H${invX} V${invY}" class="wire${cls}"/>`;
+    s += transistor(invX, invY, cls);
+    const cx = invX + TR_DX;
+    s += vddSymbol(cx, vccY, cls);
+    s += resistor(cx, vccY, invY - TR_DY - vccY, true, "Rc", cls);
+    s += gndSymbol(cx, invY + TR_DY, cls);
+    s += `<circle cx="${cx}" cy="${invY - TR_DY}" r="2.6" class="junction${cls}"/>`;
+    s += `<path d="M${cx},${invY - TR_DY} H${w - 12} V${outY} H${w}" class="wire${cls}"/>`;
+    return s;
+  }
+
+  /**
+   * Inversor suelto: un transistor con su resistencia de base y de colector.
+   *
+   * La entrada y la salida quedan **ambas a la altura `centerY`**, que es el
+   * punto por el que el bloque se ancla. Si la base del transistor no coincide
+   * con ese eje, el cable que llega desde la variable termina desalineado
+   * respecto a la resistencia de base.
+   */
+  function transistorNot(cls, centerY) {
+    const w = 196;
+    const bx = 112;
+    const by = centerY;
+    const cx = bx + TR_DX;
+    const vccY = by - TR_DY - 28; // sitio justo para la Rc
+    let s = "";
+    s += resistor(12, by, bx - 12, false, "Rb", cls);
+    s += transistor(bx, by, cls);
+    s += vddSymbol(cx, vccY, cls);
+    s += resistor(cx, vccY, by - TR_DY - vccY, true, "Rc", cls);
+    s += gndSymbol(cx, by + TR_DY, cls);
+    s += `<circle cx="${cx}" cy="${(by - TR_DY).toFixed(1)}" r="2.6" class="junction${cls}"/>`;
+    s += `<path d="M${cx},${(by - TR_DY).toFixed(1)} H${w - 12} V${by} H${w}" class="wire${cls}"/>`;
+    return s;
+  }
+
+  function buildCircuit(groups, mode, constantValue, sim, names, level) {
+    const tr = level === "transistors";
+    const NODE_W = tr ? TR_BLOCK.w : GATE_W;
+    const NODE_H = tr ? TR_BLOCK.h : GATE_H;
+    const NOT_BW = tr ? 196 : NOT_W;
+    const NOT_BH = tr ? 176 : NOT_H;
+    const colGap = tr ? 54 : COL_GAP;
+    // Las compuertas de profundidad 1 quedan a dos filas de distancia, así que la
+    // fila tiene que medir al menos media altura de bloque para que no se toquen.
+    const rowH = tr ? Math.ceil((TR_BLOCK.h + 26) / 2) : ROW_H;
+    const sigRow = tr ? TR_BLOCK.h + 14 : SIG_ROW;
+    if (constantValue !== null) {
+      return `<svg viewBox="0 0 240 64" class="circuit"><text x="16" y="40" class="const">ƒ = ${constantValue}</text></svg>`;
+    }
+
+    const root = expressionTree(groups, mode, names);
+    const depth = heightOf(root);
+
+    // Señales distintas que consume el circuito. Un mismo `A'` usado en varios
+    // términos es **un solo inversor** cuya salida se reparte: dibujar uno por
+    // aparición daría una cuenta de chips falsa.
+    const signals = [];
+    const signalKey = (leaf) => `${leaf.index}:${leaf.negated ? 1 : 0}`;
+    const collect = (node) => {
+      if (node.type === "lit") {
+        const key = signalKey(node);
+        let signal = signals.find((s) => s.key === key);
+        if (!signal) {
+          signal = { key, index: node.index, negated: node.negated, label: node.label, leaves: [] };
+          signals.push(signal);
+        }
+        signal.leaves.push(node);
+        node.signal = signal;
+      } else {
+        node.children.forEach(collect);
+      }
+    };
+    collect(root);
+    signals.sort((a, b) => a.index - b.index || Number(a.negated) - Number(b.negated));
+
+    const busX0 = LABEL_X + 26 + NOT_BW + 24;
+    // Cada fila mide según lo que contiene: una señal sin negar es solo un cable
+    // y no necesita reservar la altura de un bloque de transistores.
+    let stackY = 0;
+    signals.forEach((signal, j) => {
+      const rowH = tr ? (signal.negated ? NOT_BH + 12 : 46) : sigRow;
+      signal.y = stackY + rowH / 2;
+      stackY += rowH;
+      signal.busX = busX0 + j * BUS_GAP;
+    });
+
+    const headerH = stackY + (tr ? 20 : 26);
+    const treeLeft = busX0 + signals.length * BUS_GAP + 34;
+    const colX = (h) => treeLeft + (h - 1) * (NODE_W + colGap);
+
+    let slot = 0;
+    const place = (node) => {
+      if (node.type === "lit") {
+        node.y = headerH + (tr ? NODE_H / 2 : 22) + slot * rowH;
+        slot += 1;
+        node.outX = node.signal.busX;
+      } else {
+        node.children.forEach(place);
+        node.y = (node.children[0].y + node.children[1].y) / 2;
+        node.h = heightOf(node);
+        node.outX = colX(node.h) + NODE_W;
+      }
+      return node;
+    };
+    place(root);
+
+    const height = headerH + slot * rowH + (tr ? NODE_H / 2 + 20 : 30);
+    const width = colX(depth) + NODE_W + 92;
+    const live = (v) => (v === 1 ? " live" : "");
+    const value = (node) => (sim ? evaluate(node, sim, mode) : null);
+    const signalValue = (signal) =>
+      sim ? (signal.negated ? 1 - sim[signal.index] : sim[signal.index]) : null;
+
+    let svg = "";
+
+    // --- cabecera: entradas, inversores y buses de distribución ---
+    // Una variable usada en directo y negada es **una sola entrada** que se
+    // bifurca, no dos: dibujarlas por separado sugeriría dos señales distintas.
+    const inputX = LABEL_X + 14;
+    const byVariable = new Map();
+    for (const signal of signals) {
+      if (!byVariable.has(signal.index)) byVariable.set(signal.index, []);
+      byVariable.get(signal.index).push(signal);
+    }
+
+    for (const [index, group] of byVariable) {
+      const first = group[0];
+      const last = group[group.length - 1];
+      const rawValue = sim ? sim[index] : null;
+      const rawCls = live(rawValue);
+
+      svg += `<text x="${LABEL_X}" y="${first.y + 4}" class="pin${rawCls}">${names[index]}</text>`;
+      svg += `<path d="M${LABEL_X + 8},${first.y} H${inputX}" class="wire${rawCls}"/>`;
+      if (group.length > 1) {
+        // Tronco vertical del que cuelgan la salida directa y la negada.
+        svg += `<path d="M${inputX},${first.y} V${last.y}" class="wire${rawCls}"/>`;
+        svg += `<circle cx="${inputX}" cy="${first.y}" r="2.6" class="junction${rawCls}"/>`;
+      }
+
+      for (const signal of group) {
+        const on = signalValue(signal);
+        const cls = live(on);
+        const lowest = Math.max(...signal.leaves.map((leaf) => leaf.y));
+        let fromX = inputX;
+
+        if (signal.negated) {
+          const nx = inputX + 12;
+          const ny = signal.y - NOT_BH / 2;
+          svg += `<path d="M${inputX},${signal.y} H${nx}" class="wire${rawCls}"/>`;
+          svg += tr
+            ? `<g transform="translate(${nx},${ny})">${transistorNot(cls, NOT_BH / 2)}</g>`
+            : `<g transform="translate(${nx},${ny})"><path d="${NOT_PATH}" class="gate${cls}"/><circle cx="${NOT_BUBBLE.cx}" cy="${NOT_BUBBLE.cy}" r="${NOT_BUBBLE.r}" class="bubble${cls}"/></g>`;
+          fromX = nx + NOT_BW;
+        }
+
+        svg += `<path d="M${fromX},${signal.y} H${signal.busX} V${lowest}" class="wire${cls}"/>`;
+        svg += `<text x="${signal.busX + 5}" y="${signal.y - 5}" class="bus-label${cls}">${signal.label}</text>`;
+      }
+    }
+
+    // --- árbol de compuertas ---
+    const draw = (node) => {
+      if (node.type === "lit") {
+        // Punto de derivación sobre el bus de su señal.
+        svg += `<circle cx="${node.signal.busX}" cy="${node.y}" r="2.6" class="junction${live(value(node))}"/>`;
+        return;
+      }
+
+      node.children.forEach(draw);
+
+      const gx = colX(node.h);
+      const gy = node.y - NODE_H / 2;
+      const inputs = tr
+          ? TR_IN_Y.map((y) => node.y - NODE_H / 2 + y)
+          : [node.y - GATE_H / 4, node.y + GATE_H / 4];
+
+      node.children.forEach((child, i) => {
+        const cx = child.outX;
+        const cy = child.y;
+        const ty = inputs[i];
+        const turnX = Math.max(cx + 8, gx - 22);
+        const d =
+          Math.abs(cy - ty) < 0.5
+            ? `M${cx},${cy} H${gx}`
+            : `M${cx},${cy} H${turnX} V${ty} H${gx}`;
+        svg += `<path d="${d}" class="wire${live(value(child))}"/>`;
+      });
+
+      const gcls = live(value(node));
+      if (tr) {
+        svg += `<g transform="translate(${gx},${gy})">${transistorGate(node.kind, gcls, NODE_H / 2)}</g>`;
+      } else {
+        svg += gate(node.kind, gx, gy, `gate${gcls}`);
+        svg += `<text x="${gx + (node.kind === "and" ? 20 : 30)}" y="${node.y + 4}" class="gate-label">${
+          node.kind === "and" ? "&amp;" : "≥1"
+        }</text>`;
+      }
+    };
+
+    draw(root);
+
+    const outValue = value(root);
+    svg += `<path d="M${root.outX},${root.y} H${root.outX + 38}" class="wire${live(outValue)}"/>`;
+    svg += `<text x="${root.outX + 46}" y="${root.y + 4}" class="pin out${live(outValue)}">ƒ${
+      sim ? ` = ${outValue}` : ""
+    }</text>`;
+
+    // A nivel de transistores el dibujo es denso: conserva su tamaño natural y
+    // se desplaza en horizontal en vez de encogerse hasta ser ilegible.
+    return `<svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" class="circuit${
+      tr ? " dense" : ""
+    }">${svg}</svg>`;
+  }
+
+
+  /* ---------- componente ---------- */
+
+  function setup(root) {
+    let n = 4;
+    let mode = "sop";
+    let tab = "map";
+    let names = DEFAULT_NAMES.slice(0, n);
+    let values = new Array(1 << n).fill(0);
+    let sim = null;
+    let level = "gates";
+
+    const q = (sel) => root.querySelector(sel);
+
+    function tint(i, alpha = 26) {
+      return `color-mix(in srgb, ${PALETTE[i % PALETTE.length]} ${alpha}%, transparent)`;
+    }
+
+    function background(indices) {
+      if (indices.length === 0) return "";
+      if (indices.length === 1) return tint(indices[0]);
+      const step = 100 / indices.length;
+      return `linear-gradient(135deg, ${indices
+        .map((g, i) => `${tint(g)} ${i * step}% ${(i + 1) * step}%`)
+        .join(", ")})`;
+    }
+
+    function renderNames() {
+      q("[data-names]").innerHTML = names
+        .map(
+          (name, i) =>
+            `<input type="text" maxlength="2" value="${name}" data-name="${i}" aria-label="Nombre de la variable ${i + 1}">`,
+        )
+        .join("");
+    }
+
+    function renderMaps(groups) {
+      const { pageBits, rows, cols, rowVars, colVars } = layoutFor(n);
+      const colBits = Math.log2(cols.length);
+      const rowBits = Math.log2(rows.length);
+      const rowLabel = rowVars.map((i) => names[i]).join("");
+      const colLabel = colVars.map((i) => names[i]).join("");
+
+      const grids = [];
+      for (let page = 0; page < 1 << pageBits; page++) {
+        const head = `<tr><th class="corner">${rowLabel}\\${colLabel}</th>${cols
+          .map((c) => `<th>${c}</th>`)
+          .join("")}</tr>`;
+        const body = rows
+          .map((row) => {
+            const cells = cols
+              .map((col) => {
+                const m =
+                  (page << (rowBits + colBits)) |
+                  (parseInt(row, 2) << colBits) |
+                  parseInt(col, 2);
+                const inGroups = groups
+                  .map((g, i) => (g.cells.includes(m) ? i : -1))
+                  .filter((i) => i >= 0);
+                const bg = background(inGroups);
+                return `<td><button type="button" data-cell="${m}" style="${
+                  bg ? `background:${bg}` : ""
+                }"><span>${VALUE_LABEL[values[m]]}</span><small>${m}</small></button></td>`;
+              })
+              .join("");
+            return `<tr><th>${row}</th>${cells}</tr>`;
+          })
+          .join("");
+        const title = pageBits ? `<caption>${names[0]} = ${page}</caption>` : "";
+        grids.push(`<table>${title}${head}${body}</table>`);
+      }
+      q("[data-maps]").innerHTML = `<div class="grids">${grids.join("")}</div>`;
+    }
+
+    function renderTable() {
+      const head = `<tr>${names.map((v) => `<th>${v}</th>`).join("")}<th class="fcol">ƒ</th></tr>`;
+      const body = values
+        .map((v, m) => {
+          const bits = names.map((_, i) => (m >> (n - 1 - i)) & 1);
+          return `<tr>${bits.map((b) => `<td>${b}</td>`).join("")}<td class="fcol"><button type="button" data-cell="${m}">${VALUE_LABEL[v]}</button></td></tr>`;
+        })
+        .join("");
+      q("[data-table]").innerHTML = head + body;
+    }
+
+    /**
+     * Inventario de componentes. Cuenta compuertas de dos entradas e inversores
+     * compartidos, y en modo transistores traduce a la topología robusta:
+     * 3 transistores por compuerta (NAND/NOR + inversor) y 1 por inversor.
+     */
+    function renderBom(result, constant) {
+      const target = q("[data-bom]");
+      if (constant !== null || result.groups.length === 0) {
+        target.textContent = "";
+        return;
+      }
+      let gates = 0;
+      const count = (node) => {
+        if (node.type === "gate") {
+          gates += 1;
+          node.children.forEach(count);
+        }
+      };
+      const tree = expressionTree(result.groups, mode, names);
+      count(tree);
+      const negated = new Set();
+      const scan = (node) => {
+        if (node.type === "lit") {
+          if (node.negated) negated.add(node.index);
+        } else node.children.forEach(scan);
+      };
+      scan(tree);
+      const inverters = negated.size;
+
+      if (level === "transistors") {
+        const transistors = gates * 3 + inverters;
+        // Cada compuerta robusta lleva 2 Rb de entrada, 1 Rc, 1 Rb y 1 Rc del inversor.
+        const resistors = gates * 5 + inverters * 2;
+        target.textContent = `${transistors} transistores y ${resistors} resistencias · ${gates} compuertas de dos entradas (3 transistores cada una) más ${inverters} inversor${inverters === 1 ? "" : "es"}`;
+      } else {
+        target.textContent = `${gates} compuerta${gates === 1 ? "" : "s"} de dos entradas y ${inverters} inversor${inverters === 1 ? "" : "es"}`;
+      }
+    }
+
+    function renderSim() {
+      if (!sim) {
+        q("[data-sim]").innerHTML = "";
+        return;
+      }
+      q("[data-sim]").innerHTML =
+        `<span>Entradas:</span>` +
+        names
+          .map(
+            (name, i) =>
+              `<button type="button" class="sim-bit${sim[i] ? " on" : ""}" data-sim-bit="${i}">${name} = ${sim[i]}</button>`,
+          )
+          .join("");
+    }
+
+    function render() {
+      const result = solve(values, n, names, mode);
+      q("[data-expr]").textContent = result.expr;
+      renderMaps(result.groups);
+      renderTable();
+
+      q("[data-groups]").innerHTML = result.groups
+        .map(
+          (g, i) =>
+            `<li><span class="swatch" style="--swatch:${PALETTE[i % PALETTE.length]}"></span><code>${g.text}</code></li>`,
+        )
+        .join("");
+      q("[data-notation]").textContent = result.constant
+        ? ""
+        : mode === "sop"
+          ? `Σm(${result.indices.join(", ")})`
+          : `ΠM(${result.indices.join(", ")})`;
+
+      const constant = result.constant ? (mode === "sop" ? "0" : "1") : null;
+      q("[data-circuit]").innerHTML = buildCircuit(result.groups, mode, constant, sim, names, level);
+      renderBom(result, constant);
+      renderSim();
+    }
+
+    function reset() {
+      names = DEFAULT_NAMES.slice(0, n);
+      values = new Array(1 << n).fill(0);
+      sim = null;
+      renderNames();
+      render();
+    }
+
+    /* eventos */
+
+    root.addEventListener("click", (event) => {
+      const cell = event.target.closest("[data-cell]");
+      if (cell) {
+        const m = Number(cell.dataset.cell);
+        values[m] = (values[m] + 1) % 3;
+        render();
+        return;
+      }
+
+      const tabButton = event.target.closest("[data-tab]");
+      if (tabButton) {
+        tab = tabButton.dataset.tab;
+        root.querySelectorAll("[data-tab]").forEach((b) => {
+          b.setAttribute("aria-selected", String(b === tabButton));
+        });
+        root.querySelectorAll("[data-panel]").forEach((p) => {
+          p.hidden = p.dataset.panel !== tab;
+        });
+        if (tab === "circuit" && sim === null) {
+          sim = new Array(n).fill(0);
+          render();
+        }
+        return;
+      }
+
+      const fill = event.target.closest("[data-fill]");
+      if (fill) {
+        const kind = fill.dataset.fill;
+        values = values.map(() =>
+          kind === "random" ? (Math.random() < 0.45 ? 1 : 0) : Number(kind),
+        );
+        render();
+        return;
+      }
+
+      const levelButton = event.target.closest("[data-level]");
+      if (levelButton) {
+        level = levelButton.dataset.level;
+        root.querySelectorAll("[data-level]").forEach((b) => {
+          b.setAttribute("aria-pressed", String(b === levelButton));
+        });
+        render();
+        return;
+      }
+
+      const bit = event.target.closest("[data-sim-bit]");
+      if (bit) {
+        const i = Number(bit.dataset.simBit);
+        sim[i] = sim[i] ? 0 : 1;
+        render();
+      }
+    });
+
+    root.addEventListener("change", (event) => {
+      if (event.target.matches("[data-vars]")) {
+        n = Number(event.target.value);
+        reset();
+      } else if (event.target.matches("[data-mode]")) {
+        mode = event.target.value;
+        render();
+      }
+    });
+
+    root.addEventListener("input", (event) => {
+      const field = event.target.closest("[data-name]");
+      if (!field) return;
+      const i = Number(field.dataset.name);
+      const clean = field.value.trim().toUpperCase().slice(0, 2);
+      names[i] = clean || DEFAULT_NAMES[i];
+      render();
+    });
+
+    renderNames();
+    render();
+  }
+
+  document.querySelectorAll("[data-kmap-solver]").forEach(setup);
+</script>
+
+
+{/* Globales a propósito: el mapa, la tabla y los campos de nombres se generan
+    con JavaScript, y los elementos creados en tiempo de ejecución no reciben el
+    atributo de ámbito de Astro. Todos los selectores cuelgan de `.solver` para
+    que no se escape nada al resto del sitio. */}
+<style is:global>
+  .solver {
+    --ctl-h: 2rem;
+    --edge: var(--sl-color-gray-5);
+    margin: 1.75rem 0;
+    border: 1px solid var(--edge);
+    border-radius: 0.65rem;
+    overflow: hidden;
+    font-size: var(--sl-text-sm);
+  }
+
+  .solver *,
+  .solver *::before,
+  .solver *::after {
+    box-sizing: border-box;
+  }
+
+  /* ---- barra de expresión ---- */
+
+  .solver .expr-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.85rem 1.1rem;
+    background: var(--sl-color-gray-6);
+    border-bottom: 1px solid var(--edge);
+  }
+
+  .solver .expr-label {
+    font-family: var(--sl-font-mono);
+    font-size: var(--sl-text-lg);
+    color: var(--sl-color-gray-3);
+  }
+
+  .solver .expr-value {
+    font-family: var(--sl-font-mono);
+    font-size: var(--sl-text-lg);
+    font-weight: 600;
+    color: var(--sl-color-white);
+    overflow-wrap: anywhere;
+  }
+
+  /* ---- controles ---- */
+
+  .solver .controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.85rem 1.4rem;
+    padding: 0.9rem 1.1rem;
+    border-bottom: 1px solid var(--edge);
+  }
+
+  .solver .field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin: 0;
+  }
+
+  .solver .field > span {
+    font-size: var(--sl-text-xs);
+    font-weight: 500;
+    color: var(--sl-color-gray-3);
+    line-height: 1;
+  }
+
+  .solver .field select,
+  .solver .names input,
+  .solver .group button {
+    height: var(--ctl-h);
+    padding: 0 0.55rem;
+    margin: 0;
+    font: inherit;
+    line-height: 1;
+    border: 1px solid var(--edge);
+    border-radius: 0.35rem;
+    background: var(--sl-color-black);
+    color: var(--sl-color-white);
+    appearance: none;
+  }
+
+  .solver .field select {
+    padding-right: 1.6rem;
+    background-image: linear-gradient(45deg, transparent 50%, var(--sl-color-gray-3) 50%),
+      linear-gradient(135deg, var(--sl-color-gray-3) 50%, transparent 50%);
+    background-position: right 0.7rem center, right 0.45rem center;
+    background-size: 0.3rem 0.3rem;
+    background-repeat: no-repeat;
+    cursor: pointer;
+  }
+
+  .solver .names {
+    display: flex;
+    gap: 0.3rem;
+  }
+
+  .solver .names input {
+    flex: 0 0 2.6rem;
+    width: 2.6rem;
+    padding: 0;
+    text-align: center;
+    font-family: var(--sl-font-mono);
+  }
+
+  .solver .group {
+    display: flex;
+    gap: 0.3rem;
+  }
+
+  .solver .group button {
+    min-width: 2.1rem;
+    cursor: pointer;
+  }
+
+  .solver .field select:hover,
+  .solver .names input:focus,
+  .solver .group button:hover {
+    border-color: var(--sl-color-accent);
+    outline: none;
+  }
+
+  /* ---- pestañas ---- */
+
+  .solver .tabs {
+    display: flex;
+    gap: 0.2rem;
+    padding: 0.55rem 1.1rem 0;
+    background: var(--sl-color-gray-6);
+    border-bottom: 1px solid var(--edge);
+  }
+
+  .solver .tabs button {
+    padding: 0.45rem 0.95rem;
+    margin: 0;
+    font: inherit;
+    font-weight: 500;
+    border: 1px solid transparent;
+    border-bottom: 0;
+    border-radius: 0.4rem 0.4rem 0 0;
+    background: transparent;
+    color: var(--sl-color-gray-3);
+    cursor: pointer;
+  }
+
+  .solver .tabs button:hover {
+    color: var(--sl-color-white);
+  }
+
+  .solver .tabs button[aria-selected="true"] {
+    background: var(--sl-color-bg);
+    border-color: var(--edge);
+    color: var(--sl-color-white);
+    margin-bottom: -1px;
+    padding-bottom: calc(0.45rem + 1px);
+  }
+
+  /* ---- paneles ---- */
+
+  .solver .panel {
+    padding: 1.05rem 1.1rem 1.2rem;
+  }
+
+  .solver .hint {
+    margin: 0 0 0.9rem;
+    font-size: var(--sl-text-xs);
+    line-height: 1.5;
+    color: var(--sl-color-gray-3);
+  }
+
+  .solver .hint code {
+    padding: 0.05rem 0.3rem;
+    border-radius: 0.2rem;
+    background: var(--sl-color-gray-6);
+    font-family: var(--sl-font-mono);
+  }
+
+  .solver .scroll {
+    overflow-x: auto;
+  }
+
+  /* Con cinco variables la tabla tiene 32 filas: se limita y se desplaza. */
+  .solver [data-panel="table"] .scroll {
+    max-height: 26rem;
+    overflow-y: auto;
+  }
+
+  .solver .grids {
+    display: flex;
+    gap: 1.6rem;
+    flex-wrap: wrap;
+  }
+
+  /* ---- tablas (mapa y tabla de verdad) ---- */
+
+  .solver table {
+    border-collapse: collapse;
+    margin: 0;
+    width: auto;
+  }
+
+  .solver caption {
+    caption-side: top;
+    padding: 0 0 0.4rem;
+    font-size: var(--sl-text-xs);
+    font-family: var(--sl-font-mono);
+    color: var(--sl-color-gray-2);
+    text-align: left;
+  }
+
+  .solver th,
+  .solver td {
+    border: 1px solid var(--edge);
+    padding: 0;
+    text-align: center;
+    vertical-align: middle;
+  }
+
+  .solver th {
+    padding: 0.35rem 0.6rem;
+    background: var(--sl-color-gray-6);
+    color: var(--sl-color-gray-2);
+    font-family: var(--sl-font-mono);
+    font-size: var(--sl-text-xs);
+    font-weight: 600;
+  }
+
+  .solver .corner {
+    white-space: nowrap;
+  }
+
+  .solver td button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.05rem;
+    width: 100%;
+    min-width: 3.1rem;
+    height: 2.9rem;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    background: transparent;
+    color: var(--sl-color-white);
+    font: inherit;
+    font-family: var(--sl-font-mono);
+    font-size: var(--sl-text-base);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.12s;
+  }
+
+  .solver td button small {
+    font-size: 0.6rem;
+    font-weight: 400;
+    line-height: 1;
+    color: var(--sl-color-gray-3);
+  }
+
+  .solver td button:hover {
+    outline: 2px solid var(--sl-color-accent);
+    outline-offset: -2px;
+  }
+
+  .solver [data-table] td {
+    padding: 0;
+    font-family: var(--sl-font-mono);
+    color: var(--sl-color-gray-2);
+  }
+
+  .solver [data-table] td:not(.fcol) {
+    padding: 0.2rem 0.75rem;
+  }
+
+  .solver [data-table] .fcol {
+    border-left: 2px solid var(--sl-color-gray-4);
+  }
+
+  .solver [data-table] td button {
+    min-width: 2.6rem;
+    height: 1.9rem;
+    font-size: var(--sl-text-sm);
+  }
+
+  /* ---- leyenda y notación ---- */
+
+  .solver .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 1rem;
+    margin: 1rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .solver .legend li {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0;
+  }
+
+  .solver .legend code {
+    font-family: var(--sl-font-mono);
+    color: var(--sl-color-white);
+  }
+
+  .solver .swatch {
+    width: 0.85rem;
+    height: 0.85rem;
+    border-radius: 0.2rem;
+    background: color-mix(in srgb, var(--swatch) 26%, transparent);
+    border: 1.5px solid var(--swatch);
+    flex-shrink: 0;
+  }
+
+  .solver .notation {
+    margin: 0.55rem 0 0;
+    font-family: var(--sl-font-mono);
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-gray-3);
+  }
+
+  /* ---- simulador y circuito ---- */
+
+  .solver .sim {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 1rem;
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-gray-3);
+  }
+
+  .solver .sim-bit {
+    height: var(--ctl-h);
+    padding: 0 0.65rem;
+    margin: 0;
+    font: inherit;
+    font-family: var(--sl-font-mono);
+    border: 1px solid var(--edge);
+    border-radius: 0.35rem;
+    background: var(--sl-color-black);
+    color: var(--sl-color-gray-2);
+    cursor: pointer;
+  }
+
+  .solver .sim-bit.on {
+    border-color: #059669;
+    background: color-mix(in srgb, #059669 22%, transparent);
+    color: var(--sl-color-white);
+  }
+
+  .solver .circuit {
+    max-width: 100%;
+    height: auto;
+    min-width: 24rem;
+  }
+
+  .solver .circuit.dense {
+    max-width: none;
+    width: auto;
+    height: auto;
+  }
+
+  .solver .circuit .gate {
+    fill: var(--sl-color-gray-6);
+    stroke: var(--sl-color-gray-3);
+    stroke-width: 1.6;
+  }
+
+  .solver .circuit .gate.live {
+    stroke: #059669;
+    fill: color-mix(in srgb, #059669 20%, transparent);
+  }
+
+  .solver .circuit .wire {
+    stroke: var(--sl-color-gray-4);
+    stroke-width: 1.8;
+    fill: none;
+  }
+
+  .solver .circuit .wire.live {
+    stroke: #059669;
+    stroke-width: 2.4;
+  }
+
+  .solver .circuit .bubble {
+    fill: var(--sl-color-bg);
+    stroke: var(--sl-color-gray-3);
+    stroke-width: 1.4;
+  }
+
+  .solver .circuit .pin,
+  .solver .circuit .gate-label,
+  .solver .circuit .const {
+    fill: var(--sl-color-gray-2);
+    font-family: var(--sl-font-mono);
+    font-size: 13px;
+    text-anchor: end;
+  }
+
+  .solver .circuit .gate-label {
+    text-anchor: middle;
+    font-size: 12px;
+  }
+
+  .solver .circuit .const {
+    text-anchor: start;
+    font-size: 16px;
+  }
+
+  .solver .circuit .pin.live {
+    fill: #059669;
+    font-weight: 700;
+  }
+
+  .solver .level {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-gray-3);
+  }
+
+  .solver .level button {
+    height: var(--ctl-h);
+    padding: 0 0.7rem;
+    margin: 0;
+    font: inherit;
+    border: 1px solid var(--edge);
+    border-radius: 0.35rem;
+    background: var(--sl-color-black);
+    color: var(--sl-color-gray-2);
+    cursor: pointer;
+  }
+
+  .solver .level button[aria-pressed="true"] {
+    background: var(--sl-color-accent);
+    border-color: var(--sl-color-accent);
+    color: var(--sl-color-white);
+  }
+
+  .solver .bom {
+    margin: 0 0 0.9rem;
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-gray-2);
+  }
+
+  .solver .circuit .tr-body {
+    fill: none;
+    stroke: var(--sl-color-gray-4);
+    stroke-width: 2;
+  }
+
+  .solver .circuit .tr-body.live {
+    stroke: #059669;
+  }
+
+  .solver .circuit .tr-bar {
+    stroke: var(--sl-color-gray-2);
+    stroke-width: 3.4;
+    stroke-linecap: butt;
+    fill: none;
+  }
+
+  .solver .circuit .tr-bar.live {
+    stroke: #059669;
+  }
+
+  .solver .circuit .tr-arrow {
+    fill: var(--sl-color-gray-2);
+    stroke: none;
+  }
+
+  .solver .circuit .tr-arrow.live {
+    fill: #059669;
+  }
+
+  .solver .circuit .tr-res {
+    fill: var(--sl-color-bg);
+    stroke: var(--sl-color-gray-3);
+    stroke-width: 1.5;
+  }
+
+  .solver .circuit .tr-res.live {
+    stroke: #059669;
+  }
+
+  .solver .circuit .tr-label {
+    fill: var(--sl-color-gray-3);
+    font-family: var(--sl-font-mono);
+    font-size: 9px;
+    text-anchor: start;
+  }
+
+  .solver .circuit .tr-label.end {
+    text-anchor: end;
+  }
+
+  .solver .circuit .tr-label.mid {
+    text-anchor: middle;
+  }
+
+  .solver .circuit .junction {
+    fill: var(--sl-color-gray-4);
+  }
+
+  .solver .circuit .junction.live {
+    fill: #059669;
+  }
+
+  .solver .circuit .bubble.live {
+    stroke: #059669;
+  }
+
+  .solver .circuit .bus-label {
+    fill: var(--sl-color-gray-3);
+    font-family: var(--sl-font-mono);
+    font-size: 10px;
+    text-anchor: start;
+  }
+
+  .solver .circuit .bus-label.live {
+    fill: #059669;
+  }
+
+  .solver .circuit .pin.out {
+    text-anchor: start;
+  }
+</style>
