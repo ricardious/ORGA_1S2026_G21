@@ -1,0 +1,210 @@
+---
+title: Aritmética binaria
+description: Cómo representar, sumar y restar números binarios, interpretar el complemento a dos y distinguir acarreo, signo y desbordamiento.
+sidebar:
+  order: 5
+---
+
+import BitTable from '../../../components/BitTable.astro';
+
+La [Práctica 2](../../practicas/practica-2/) trabaja con operandos de 4 bits, pero sus resultados no siempre caben en 4 bits ni todos se interpretan de la misma manera. Antes de conectar sumadores y displays hay que decidir **cuántos bits tiene el dato** y si representa un número **sin signo** o **con signo**.
+
+## El peso de cada bit
+
+En binario cada posición vale el doble de la anterior. En una palabra de 4 bits los pesos son `8`, `4`, `2` y `1`.
+
+Para convertir `1011₂` a decimal se suman los pesos donde hay un `1`:
+
+<BitTable
+  rows={[
+    { label: 'posición', bits: '3210', kind: 'weight' },
+    { label: 'peso', bits: '8421', kind: 'weight' },
+    { label: 'valor', bits: '1011', note: '= 8 + 2 + 1 = 11', kind: 'result' },
+  ]}
+  caption="Solo las posiciones con 1 aportan su peso. Es la misma idea que en decimal, pero con potencias de dos."
+/>
+
+Con `n` bits existen `2ⁿ` combinaciones. Si el número es **sin signo**, el intervalo es de `0` a `2ⁿ − 1`:
+
+| Bits | Combinaciones | Intervalo sin signo |
+|:---:|:---:|:---:|
+| 4 | 16 | 0 a 15 |
+| 6 | 64 | 0 a 63 |
+| 8 | 256 | 0 a 255 |
+
+## Suma binaria
+
+La suma se hace de derecha a izquierda. Cada columna produce un bit de resultado y, a veces, un acarreo hacia la siguiente:
+
+| `A` | `B` | `C_in` | Suma | `C_out` |
+|:---:|:---:|:---:|:---:|:---:|
+| 0 | 0 | 0 | 0 | 0 |
+| 0 | 1 | 0 | 1 | 0 |
+| 1 | 1 | 0 | 0 | 1 |
+| 1 | 1 | 1 | 1 | 1 |
+
+### Ejemplo: 9 + 6
+
+<BitTable
+  rows={[
+    { label: 'A', bits: '1001', note: '= 9' },
+    { label: 'B', bits: '0110', note: '= 6' },
+    { label: 'Σ', bits: '1111', note: '= 15', kind: 'result', rule: true },
+  ]}
+  caption="Ninguna columna genera acarreo: 9 y 6 no comparten ningún bit en 1."
+/>
+
+El resultado cabe exactamente en 4 bits. En cambio, `12 + 7` necesita un quinto bit:
+
+<BitTable
+  rows={[
+    { label: 'acarreos', bits: ' 1   ', kind: 'carry' },
+    { label: 'A', bits: '1100', note: '= 12' },
+    { label: 'B', bits: '0111', note: '= 7' },
+    { label: 'C_out Σ', bits: '10011', note: '= 19', kind: 'result', rule: true },
+  ]}
+  highlight={[0]}
+  caption="El bit resaltado es el que no cabe en la palabra de 4 bits."
+/>
+
+Si solo se guardan cuatro bits queda `0011`, que vale 3, y el quinto bit aparece como `C_out = 1`. El circuito no calculó mal: **el recipiente era demasiado pequeño**.
+
+## Números negativos y complemento a dos
+
+En complemento a dos, el bit de la izquierda funciona como signo: `0` indica un valor no negativo y `1` uno negativo. Con `n` bits el intervalo es:
+
+```text
+−2^(n−1) a 2^(n−1) − 1
+```
+
+Por eso 4 bits con signo representan de `−8` a `+7`.
+
+Para obtener `−x`:
+
+1. Escribe `x` con el ancho elegido.
+2. Invierte todos los bits.
+3. Suma `1`.
+
+### Ejemplo: representar −3 en 4 bits
+
+<BitTable
+  rows={[
+    { label: '3', bits: '0011' },
+    { label: 'invertir', bits: '1100' },
+    { label: 'sumar 1', bits: '0001' },
+    { label: '−3', bits: '1101', note: 'el bit de signo queda en 1', kind: 'result', rule: true },
+  ]}
+  highlight={[0]}
+  caption="La columna resaltada es el bit de signo. En complemento a dos no es un bit aparte: también aporta peso, pero negativo."
+/>
+
+Para comprobarlo, se suman `3 + (−3)`:
+
+<BitTable
+  rows={[
+    { label: 'acarreos', bits: ' 111 ', kind: 'carry' },
+    { label: '3', bits: '0011' },
+    { label: '−3', bits: '1101' },
+    { label: 'resultado', bits: '10000', note: 'se descarta el acarreo → 0', kind: 'result', rule: true },
+  ]}
+  highlight={[0]}
+  caption="Ese acarreo se sale de la palabra y no se guarda. Los cuatro bits que quedan son ceros, que es lo que debía dar."
+/>
+
+## La resta se convierte en suma
+
+Un sumador también puede restar aplicando:
+
+```text
+A − B = A + (complemento a dos de B)
+      = A + B' + 1
+```
+
+En hardware, una XOR invierte cada bit de `B` cuando `RESTAR = 1`, y esa misma señal entra como acarreo inicial.
+
+| `RESTAR` | Entrada al sumador | `C_in` | Operación |
+|:---:|---|:---:|---|
+| 0 | `B` | 0 | `A + B` |
+| 1 | `B'` | 1 | `A − B` |
+
+### Ejemplo: 2 − 3
+
+<BitTable
+  rows={[
+    { label: '2', bits: '0010' },
+    { label: '−3', bits: '1101' },
+    { label: 'resultado', bits: '1111', note: '= −1 con signo', kind: 'result', rule: true },
+  ]}
+  caption="Ninguna columna genera acarreo. El sumador hizo una suma corriente; la resta está en cómo se preparó el segundo operando."
+/>
+
+`1111` vale 15 si se interpreta **sin signo**, pero vale `−1` en complemento a dos. Los bits no cambiaron; cambió su interpretación.
+
+## Acarreo no es lo mismo que desbordamiento
+
+- **Acarreo (`carry`)** importa principalmente en operaciones sin signo. Indica que hizo falta un bit adicional.
+- **Desbordamiento (`overflow`)** importa en operaciones con signo. Ocurre cuando el resultado real queda fuera del intervalo representable.
+- **Signo** es el bit más significativo de un número en complemento a dos; por sí solo no demuestra que la operación sea válida.
+
+Ejemplo con 4 bits con signo:
+
+<BitTable
+  rows={[
+    { label: 'acarreos', bits: '1   ', kind: 'carry' },
+    { label: 'A', bits: '0101', note: '= +5' },
+    { label: 'B', bits: '0100', note: '= +4' },
+    { label: 'Σ', bits: '1001', note: 'parecería −7', kind: 'result', rule: true },
+  ]}
+  highlight={[0]}
+  caption="Entró un acarreo a la columna de signo pero no salió ninguno. Cuando esos dos acarreos no coinciden, hay desbordamiento: es la comprobación que hace el hardware."
+/>
+
+Sumar dos positivos produjo un bit de signo `1`: hubo desbordamiento, porque `+9` no cabe en el intervalo `−8…+7`. Compara este caso con el de `3 + (−3)`: allí sí hubo acarreo de salida y el resultado era correcto. Son dos señales distintas y ninguna sustituye a la otra.
+
+:::tip[Regla para detectar overflow]
+Al sumar números con signo, hay overflow si los operandos tienen el mismo signo y el resultado sale con el signo contrario. El `carry` final no sustituye esta comprobación.
+:::
+
+## Binario puro y BCD no son lo mismo
+
+En binario puro, `1100` representa 12. En BCD cada cifra decimal ocupa cuatro bits:
+
+<BitTable
+  rows={[
+    { label: 'binario puro', bits: '00001100', note: 'un solo número: 12' },
+    { label: 'BCD', bits: '00010010', note: 'dos cifras: 1 y 2', kind: 'result' },
+  ]}
+  caption="Los mismos ocho bits, dos lecturas incompatibles. Enviar el de arriba a dos 74LS48 no muestra 12; muestra lo que salga de las combinaciones 0000 y 1100."
+/>
+
+Las combinaciones BCD válidas por dígito van de `0000` a `1001`. De `1010` a `1111` no representan una cifra decimal. Por eso un resultado binario no puede conectarse sin más a varios displays: primero debe separarse en unidades, decenas y, si hace falta, centenas.
+
+### Ejemplo: resultado máximo de una multiplicación
+
+Dos operandos de 4 bits sin signo llegan hasta 15:
+
+```text
+15 × 15 = 225 = 11100001₂
+```
+
+El producto necesita 8 bits y su visualización decimal necesita tres dígitos BCD:
+
+<BitTable
+  rows={[
+    { label: 'binario (8 bits)', bits: '11100001', note: '= 225' },
+    { label: 'BCD (12 bits)', bits: '001000100101', note: 'cifras 2, 2 y 5', kind: 'result' },
+  ]}
+  caption="El mismo número necesita más bits en BCD que en binario puro. Ese es el precio de que cada cifra pueda ir directa a su propio display."
+/>
+
+## Errores que cuestan tiempo
+
+- **Confundir `1111` con 15 en todas partes.** También puede significar `−1`.
+- **Ignorar el ancho del resultado.** Una suma de 4 bits puede requerir 5; una multiplicación, 8.
+- **Usar `carry` como señal de negativo.** Son conceptos distintos.
+- **Enviar binario puro a dos decodificadores BCD.** Primero hay que convertirlo.
+- **Cambiar entre signo y sin signo sin documentarlo.** La misma palabra produce valores distintos.
+
+## Dónde se aplica esto
+
+La [Práctica 2](../../practicas/practica-2/) utiliza suma/resta, complemento a dos, productos de 8 bits y conversión BCD. Los integrados que realizan y seleccionan esas operaciones se explican en [Bloques combinacionales](../bloques-combinacionales/).
