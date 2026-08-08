@@ -1,0 +1,173 @@
+---
+/**
+ * Operación binaria alineada por columnas: pesos, acarreos, operandos y
+ * resultado.
+ *
+ * En un bloque de código el alineamiento depende de contar espacios a mano y se
+ * rompe en cuanto una etiqueta cambia de longitud. Aquí cada bit ocupa una
+ * celda de una rejilla, de modo que las columnas coinciden siempre y se puede
+ * resaltar una en concreto —el bit de signo, el que desborda— sin tocar el
+ * resto.
+ */
+
+interface Row {
+  /** Nombre de la fila: `A`, `B`, `acarreos`, `Σ`… */
+  label: string;
+  /**
+   * Un carácter por columna. El espacio deja la celda vacía, útil para los
+   * acarreos, que no existen en todas las posiciones.
+   */
+  bits: string;
+  /** Anotación a la derecha, normalmente el valor en decimal. */
+  note?: string;
+  /**
+   * `carry` se atenúa, `result` se destaca y `weight` se usa para la fila de
+   * pesos posicionales.
+   */
+  kind?: "carry" | "operand" | "result" | "weight";
+  /**
+   * Línea horizontal encima de la fila. Va en la fila del **resultado**: es la
+   * raya que se traza bajo los sumandos en una operación escrita a mano.
+   */
+  rule?: boolean;
+}
+
+interface Props {
+  rows: Row[];
+  /** Índices de columna a resaltar, contando desde la izquierda. */
+  highlight?: number[];
+  caption?: string;
+}
+
+const { rows, highlight = [], caption } = Astro.props;
+
+if (rows.length === 0) {
+  throw new Error("<BitTable />: hace falta al menos una fila.");
+}
+
+// El ancho lo fija la fila más larga —normalmente la del resultado, que gana un
+// bit por el acarreo— y las demás se rellenan por la izquierda. Así el bit menos
+// significativo de todas cae siempre en la misma columna.
+const columns = Math.max(...rows.map((row) => row.bits.length));
+
+const grid = rows.map((row) => ({
+  ...row,
+  cells: row.bits.padStart(columns, " ").split(""),
+}));
+---
+
+{/* `not-content` es imprescindible: las celdas son `div`, y los estilos de
+    contenido de Starlight les añaden margen entre hermanos, lo que separaba las
+    filas de la operación como si fueran párrafos. */}
+<figure class="bits not-content">
+  <div class="scroller">
+    <div class="grid" style={`--cols:${columns}`}>
+      {
+        grid.map((row) => (
+          <>
+            <div class={`label ${row.kind ?? "operand"}`}>{row.label}</div>
+            {row.cells.map((cell, index) => (
+              <div
+                class:list={[
+                  "cell",
+                  row.kind ?? "operand",
+                  { rule: row.rule },
+                  // Resaltar una celda vacía dejaría un bloque de color suelto.
+                  { mark: highlight.includes(index) && cell !== " " },
+                  { blank: cell === " " },
+                ]}
+              >
+                {cell === " " ? "" : cell}
+              </div>
+            ))}
+            <div class={`note ${row.kind ?? "operand"}`}>{row.note ?? ""}</div>
+          </>
+        ))
+      }
+    </div>
+  </div>
+
+  {caption && <figcaption>{caption}</figcaption>}
+</figure>
+
+<style>
+  .bits {
+    margin: 1.5rem 0;
+  }
+
+  .bits .scroller {
+    overflow-x: auto;
+  }
+
+  .bits .grid {
+    display: grid;
+    /* Etiqueta · una columna por bit · anotación. */
+    grid-template-columns: auto repeat(var(--cols), 2.1rem) auto;
+    align-items: center;
+    width: max-content;
+    font-family: var(--sl-font-system-mono, monospace);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .bits .label {
+    padding-right: 0.8rem;
+    text-align: right;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-3);
+    white-space: nowrap;
+  }
+
+  .bits .note {
+    padding-left: 0.9rem;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-3);
+    white-space: nowrap;
+  }
+
+  .bits .cell {
+    padding: 0.28rem 0;
+    text-align: center;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--sl-color-white);
+    line-height: 1.4;
+  }
+
+  /* La regla se dibuja como borde superior de la fila que la lleva, igual que
+     la raya de una suma escrita a mano. */
+  .bits .cell.rule {
+    border-top: 2px solid var(--sl-color-gray-4);
+  }
+
+  .bits .cell.carry,
+  .bits .label.carry,
+  .bits .cell.weight,
+  .bits .label.weight {
+    font-size: var(--sl-text-sm);
+    font-weight: 500;
+    color: var(--sl-color-gray-3);
+  }
+
+  .bits .cell.result,
+  .bits .note.result {
+    color: var(--sl-color-accent-high);
+    font-weight: 700;
+  }
+
+  .bits .cell.mark {
+    background: color-mix(in srgb, var(--sl-color-accent) 22%, transparent);
+    border-radius: 0.2rem;
+  }
+
+  .bits .cell.blank {
+    color: transparent;
+  }
+
+  .bits figcaption {
+    margin-top: 0.7rem;
+    font-size: var(--sl-text-sm);
+    line-height: 1.5;
+    color: var(--sl-color-gray-3);
+    text-wrap: balance;
+  }
+</style>
