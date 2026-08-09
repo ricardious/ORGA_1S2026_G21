@@ -1,0 +1,197 @@
+---
+title: Bloques combinacionales
+description: Cómo funcionan decodificadores, multiplexores, sumadores, comparadores y decodificadores BCD de la familia 74LS.
+sidebar:
+  order: 6
+---
+
+import Schematic from '../../../components/Schematic.astro';
+import BlockFlow from '../../../components/BlockFlow.astro';
+import BitTable from '../../../components/BitTable.astro';
+
+Una compuerta resuelve una operación pequeña. Cuando el circuito necesita seleccionar ocho operaciones, sumar cuatro bits o comparar dos números, conviene usar un **bloque combinacional integrado**. Su salida depende únicamente de las entradas actuales: no recuerda lo que ocurrió antes.
+
+## Del problema al bloque adecuado
+
+| Necesidad | Bloque | Usado en el curso |
+|---|---|---|
+| Activar una de ocho rutas | Decodificador 3 a 8 | `74LS138` |
+| Elegir entre dos buses | Multiplexor cuádruple 2 a 1 | `74LS157` |
+| Sumar dos palabras de 4 bits | Sumador completo | `74LS283` |
+| Saber si `A>B`, `A=B` o `A<B` | Comparador | `74LS85` |
+| Llevar una cifra BCD al display | BCD a 7 segmentos | `74LS48` |
+
+## Decodificador `74LS138`
+
+Recibe tres bits y activa una de ocho salidas. Sirve para convertir un código de operación en una línea exclusiva para cada módulo.
+
+Sus salidas son **activas en bajo**: la seleccionada vale `0` y las demás permanecen en `1`. La barra o el círculo de inversión en el símbolo advierten esta característica.
+
+<Schematic
+  src="fundamentos/pinout_74ls138.svg"
+  alt="Pinout del 74LS138 en encapsulado DIP-16 con su tabla de función completa"
+  caption="Las tres primeras filas de la tabla son las que más tiempo ahorran: describen qué pasa cuando las habilitaciones están mal puestas."
+/>
+
+Para habilitarlo, `G1` debe estar en `1` y las entradas `/G2A` y `/G2B` en `0`. Si una habilitación está mal, ninguna selección funcionará aunque `A`, `B` y `C` cambien correctamente.
+
+### Ejemplo: selector de una ALU
+
+Con `CBA = 101`, el `74LS138` lleva `Y5` a `0`. Esa línea puede habilitar la operación OR. Si el bloque siguiente espera una habilitación activa en alto, hace falta invertir `Y5` antes de usarla.
+
+## Multiplexor `74LS157`
+
+Un multiplexor es un selector de datos. El `74LS157` contiene cuatro canales 2 a 1: permite escoger a la vez entre dos palabras de 4 bits.
+
+```text
+S = 0  →  Y[3:0] = A[3:0]
+S = 1  →  Y[3:0] = B[3:0]
+```
+
+<Schematic
+  src="fundamentos/pinout_74ls157.svg"
+  alt="Pinout del 74LS157 en DIP-16 con la tabla de selección de canal"
+  caption="Los cuatro canales están intercalados en el encapsulado: 1A y 1B no son pines contiguos por casualidad, sino porque cada grupo rodea a su propia salida."
+/>
+
+Los cuatro canales comparten la entrada de selección `S` y una habilitación `/G` activa en bajo. Fíjate en la primera fila de la tabla: al deshabilitarlo las salidas no quedan «como estaban», bajan a `0`.
+
+### Ejemplo: mostrar el mayor
+
+Si un comparador informa que `A > B`, el selector puede hacer pasar `A`; si no, deja pasar `B`:
+
+| Condición | `S` | Salida del multiplexor |
+|---|:---:|---|
+| `A > B` | 0 | `A` |
+| `A ≤ B` | 1 | `B` |
+
+No se conectan directamente dos salidas al mismo bus para “elegir” una. El multiplexor existe precisamente para evitar que dos circuitos intenten imponer niveles contrarios sobre un mismo cable.
+
+## Sumador `74LS283`
+
+Suma dos palabras de 4 bits y un acarreo de entrada:
+
+```text
+S[3:0], C_out = A[3:0] + B[3:0] + C_in
+```
+
+<Schematic
+  src="fundamentos/pinout_74ls283.svg"
+  alt="Pinout del 74LS283 en DIP-16 con ejemplos de suma de 4 bits"
+  caption="Los pines no van en orden: A1 y B1 están en el lado bajo y A4 y B4 en el alto. Cablearlo «de corrido» es el error más frecuente con este integrado."
+/>
+
+### Ejemplo: 11 + 7
+
+<BitTable
+  rows={[
+    { label: 'acarreos', bits: ' 111 ', kind: 'carry' },
+    { label: 'A', bits: '1011', note: '= 11' },
+    { label: 'B', bits: '0111', note: '= 7' },
+    { label: 'C4 Σ', bits: '10010', note: '= 18', kind: 'result', rule: true },
+  ]}
+  highlight={[0]}
+  caption="El acarreo de salida es el quinto bit del resultado. Sin C4, esos mismos cuatro bits se leen como 2."
+/>
+
+El resultado completo es `1 0010₂ = 18`. Para sumar palabras más grandes, el `C_out` del bloque menos significativo se conecta al `C_in` del siguiente.
+
+También puede restar si las XOR externas entregan `B'` y se coloca `C_in = 1`, como se explica en [Aritmética binaria](../aritmetica-binaria/).
+
+## Comparador `74LS85`
+
+Compara dos palabras de 4 bits y entrega tres señales mutuamente excluyentes:
+
+- `A > B`
+- `A = B`
+- `A < B`
+
+<Schematic
+  src="fundamentos/pinout_74ls85.svg"
+  alt="Pinout del 74LS85 en DIP-16 y su tabla de comparación bit a bit"
+  caption="La tabla se lee de arriba hacia abajo: en cuanto una fila encuentra bits distintos, decide y las columnas siguientes dejan de importar."
+/>
+
+Para usar un solo comparador, las entradas de cascada se inicializan con igualdad: `I(A=B)=1`, `I(A>B)=0` e `I(A<B)=0`. Dejarlas al aire es el fallo típico: con las tres indefinidas, dos palabras idénticas pueden reportarse como distintas.
+
+### Ejemplo
+
+```text
+A = 1001₂ = 9
+B = 0110₂ = 6
+```
+
+La salida `A>B` queda activa. El comparador empieza por los bits más significativos: al encontrar el primer par diferente ya puede determinar qué palabra es mayor. Aquí basta con `A3 = 1` frente a `B3 = 0`; los tres bits restantes ya no cambian el veredicto, aunque `B` los tenga todos en `1`.
+
+### Comparar más de 4 bits: la cascada
+
+Para comparar 8 bits se conectan dos `74LS85`. El bloque de los bits menos significativos entrega su resultado a las entradas de cascada del bloque más significativo.
+
+<Schematic
+  src="fundamentos/comparador_cascada_8bits.svg"
+  alt="Dos 74LS85 encadenados: la etapa de bits bajos alimenta las entradas de cascada de la etapa de bits altos"
+  caption="El sentido importa. Si se invierte —la etapa alta alimentando a la baja— el circuito compara, pero decide con los bits equivocados."
+/>
+
+La lógica es la misma que aplicarías a mano: primero miras los bits de más peso y solo si empatan bajas a los siguientes. Por eso la etapa alta es la que manda y solo consulta a la baja cuando sus cuatro bits resultan iguales.
+
+## Decodificador `74LS48`
+
+Recibe una cifra BCD de 4 bits y genera las siete líneas `a…g` para un display compatible de **cátodo común**. Sus salidas son activas en alto: un `1` enciende el segmento correspondiente.
+
+<Schematic
+  src="fundamentos/pinout_74ls48.svg"
+  alt="Pinout del 74LS48 en DIP-16 con la tabla completa de las diez cifras BCD"
+  caption="Esta tabla es la que en la Práctica 1 hubo que deducir a mano con mapas de Karnaugh. El integrado la trae de fábrica, pero solo para las diez cifras decimales."
+/>
+
+Cada segmento todavía necesita su propia resistencia. El decodificador decide **qué segmento** se activa; la resistencia limita **cuánta corriente** circula.
+
+Las entradas de prueba y borrado (`LT`, `RBI` y `BI/RBO`, según el fabricante) no deben dejarse sin definir. Para una utilización básica se fijan en su estado inactivo conforme a la hoja de datos.
+
+:::caution[BCD solo llega hasta 9]
+Las entradas `1010…1111` no son cifras BCD válidas. El símbolo que aparezca en el display para esos códigos no debe utilizarse como resultado decimal garantizado.
+:::
+
+## Cómo diseñar con bloques
+
+Para no perderse entre integrados:
+
+1. Define el ancho de cada bus: por ejemplo `A[3:0]`.
+2. Anota si cada control es activo en alto o en bajo.
+3. Prueba cada bloque por separado.
+4. Verifica todas las entradas de habilitación.
+5. Integra una sola ruta a la vez.
+6. Coloca puntos de prueba o LEDs en señales importantes.
+
+### Ejemplo completo de recorrido
+
+En la unidad comparativa de LogicCalc:
+
+<BlockFlow
+  steps={[
+    { title: 'DIP switches', sub: 'A y B, 4 bits' },
+    { title: '74LS85', sub: 'comparador' },
+    { title: '74LS157', sub: 'multiplexor' },
+    { title: 'conversión BCD', sub: 'binario → cifras' },
+    { title: '74LS48', sub: 'decodificador' },
+    { title: 'display', sub: '7 segmentos' },
+  ]}
+  links={['A, B', 'A>B', 'mayor', 'D C B A', 'a…g']}
+  caption="Cada flecha es un punto de medida. Si el display muestra algo raro, se comprueba de derecha a izquierda hasta encontrar la primera señal correcta."
+/>
+
+El comparador decide la relación, el multiplexor escoge el operando, la conversión separa las cifras y el `74LS48` enciende los segmentos. Si el display falla, este recorrido permite medir desde el final hacia atrás sin culpar a todo el sistema.
+
+## Errores que cuestan tiempo
+
+- **Olvidar las entradas de habilitación.** El integrado parece muerto.
+- **No notar que una salida es activa en bajo.** La operación seleccionada queda invertida.
+- **Conectar dos salidas entre sí.** Puede dañarlas o producir un nivel indefinido.
+- **Perder el acarreo final del sumador.** El resultado parece reiniciarse después de 15.
+- **Aplicar binario puro al `74LS48`.** Solo acepta una cifra BCD válida.
+- **Asumir el pinout por el nombre.** Siempre se verifica en la hoja de datos.
+
+## Dónde se aplica esto
+
+La [Práctica 2](../../practicas/practica-2/) combina todos estos bloques para formar LogicCalc. Cuando el circuito necesita recordar un estado, ya no es combinacional: ese paso se explica en [Lógica secuencial](../logica-secuencial/).
