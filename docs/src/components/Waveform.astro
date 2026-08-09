@@ -1,0 +1,513 @@
+---
+/**
+ * Diagrama de tiempos (cronograma) para señales digitales.
+ *
+ * Se dibuja como SVG generado en el build, no como imagen: así hereda los
+ * colores del tema —claro y oscuro— y se mantiene nítido a cualquier tamaño.
+ *
+ * Cada señal se describe con una cadena donde **un carácter es una ranura de
+ * tiempo**, lo que permite alinear varias señales sin calcular coordenadas:
+ *
+ * ```
+ * <Waveform signals={[
+ *   { name: "CLK", wave: "01010101" },
+ *   { name: "D",   wave: "0011..00" },
+ * ]} />
+ * ```
+ *
+ * El trazo se construye con dos envolventes —superior e inferior—. Mientras el
+ * nivel está definido ambas coinciden y se ve una sola línea; en las ranuras
+ * indefinidas se separan y encierran una banda rayada. Ese truco evita tener
+ * que tratar `x` como un caso aparte en cada transición.
+ */
+
+interface Signal {
+  name: string;
+  /**
+   * Una ranura por carácter:
+   * - `0` y `1`: niveles lógicos.
+   * - `x`: indefinido o «no importa» (banda rayada).
+   * - `=`: dato válido de varios bits (banda lisa, rotulada con `values`).
+   * - `.`: mantiene el valor de la ranura anterior.
+   */
+  wave: string;
+  /** Destaca la señal en color de acento; úsalo para la salida que interesa. */
+  accent?: boolean;
+  /** Rótulos dentro del trazo: `{ at, text }` con `at` en número de ranura. */
+  values?: { at: number; text: string; span?: number }[];
+}
+
+/** Línea vertical de referencia, típicamente sobre un flanco. */
+interface Marker {
+  /** Frontera entre ranuras: `0` es el inicio y `n` el final. Admite decimales. */
+  at: number;
+  label?: string;
+  /** Marca el flanco con una punta de flecha sobre la señal indicada. */
+  edge?: number;
+}
+
+/** Cota acotada por flechas, para medir un periodo o una ventana. */
+interface Span {
+  from: number;
+  to: number;
+  label: string;
+  /**
+   * Dónde se dibuja: `"top"` sobre todo el diagrama, o el índice de una señal
+   * para colocarla en el hueco que queda justo encima de ella.
+   */
+  at?: "top" | number;
+}
+
+interface Props {
+  signals: Signal[];
+  markers?: Marker[];
+  spans?: Span[];
+  caption?: string;
+}
+
+const { signals, markers = [], spans = [], caption } = Astro.props;
+
+const SLOT = 46; // ancho de una ranura de tiempo
+const AMP = 28; // altura del trazo entre nivel bajo y alto
+const GAP = 30; // separación entre señales
+const LABEL_W = 92; // columna de nombres
+const PAD_R = 18;
+const SLEW = 5; // ancho de la rampa en cada transición
+
+if (signals.length === 0) {
+  throw new Error("<Waveform />: hace falta al menos una señal.");
+}
+
+/** Resuelve los `.` y valida los caracteres admitidos. */
+function levels(signal: Signal): string[] {
+  const out: string[] = [];
+  for (const raw of signal.wave) {
+    const char = raw.toLowerCase();
+    if (char === ".") {
+      if (out.length === 0) {
+        throw new Error(
+          `<Waveform />: la señal "${signal.name}" empieza con "." y no hay valor anterior que mantener.`,
+        );
+      }
+      out.push(out[out.length - 1]);
+      continue;
+    }
+    if (char !== "0" && char !== "1" && char !== "x" && char !== "=") {
+      throw new Error(
+        `<Waveform />: carácter "${raw}" no válido en la señal "${signal.name}". Solo se admiten 0, 1, x, = y punto.`,
+      );
+    }
+    out.push(char);
+  }
+  return out;
+}
+
+const tracks = signals.map((signal) => ({ ...signal, levels: levels(signal) }));
+const slots = Math.max(...tracks.map((t) => t.levels.length));
+
+// Un cronograma solo se lee si todas las señales comparten la misma base de
+// tiempo; una cadena más corta que el resto casi siempre es un descuido.
+for (const track of tracks) {
+  if (track.levels.length !== slots) {
+    throw new Error(
+      `<Waveform />: la señal "${track.name}" tiene ${track.levels.length} ranuras y el diagrama tiene ${slots}. Todas deben coincidir.`,
+    );
+  }
+}
+
+const topSpans = spans.filter((s) => s.at === "top");
+const rowSpans = spans.filter((s) => typeof s.at === "number");
+const SPAN_H = 26;
+
+/**
+ * Reparte las cotas en carriles. Dos que no se solapan en el tiempo —setup y
+ * hold, por ejemplo— caben en el mismo carril, y así quedan a la misma altura
+ * en vez de escalonadas sin motivo.
+ */
+function packLanes(group: Span[]): number[] {
+  const lanes: Span[][] = [];
+  return group.map((span) => {
+    let lane = 0;
+    while (
+      lanes[lane]?.some((other) => !(span.to <= other.from || span.from >= other.to))
+    ) {
+      lane++;
+    }
+    (lanes[lane] ??= []).push(span);
+    return lane;
+  });
+}
+
+const topLanes = packLanes(topSpans);
+const topLaneCount = topLanes.length ? Math.max(...topLanes) + 1 : 0;
+
+const rowLanes = tracks.map((_, index) => {
+  const group = rowSpans.filter((span) => span.at === index);
+  const lanes = packLanes(group);
+  return {
+    group,
+    lanes,
+    count: lanes.length ? Math.max(...lanes) + 1 : 0,
+  };
+});
+
+const originY = 12 + topLaneCount * SPAN_H;
+/** Alto reservado encima de cada señal para las cotas que la acompañan. */
+const extraAbove = rowLanes.map((row) => row.count * SPAN_H);
+
+const rowTop: number[] = [];
+let cursor = originY;
+tracks.forEach((_, index) => {
+  cursor += extraAbove[index];
+  rowTop.push(cursor);
+  cursor += AMP + GAP;
+});
+
+const height = cursor - GAP + 16;
+const width = LABEL_W + slots * SLOT + PAD_R;
+
+const x = (slot: number) => LABEL_W + slot * SLOT;
+
+/**
+ * Envolvente del trazo. `edge` elige el borde superior o inferior: en las
+ * ranuras definidas ambos devuelven la misma altura y las líneas se solapan.
+ */
+function envelope(track: string[], top: number, edge: "hi" | "lo"): string {
+  const hi = top;
+  const lo = top + AMP;
+  // `x` y `=` ocupan los dos niveles a la vez: las envolventes se separan y
+  // encierran una banda, que es como se dibuja un dato de varios bits.
+  const yOf = (level: string) => {
+    if (level === "x" || level === "=") return edge === "hi" ? hi : lo;
+    return level === "1" ? hi : lo;
+  };
+
+  let d = `M ${x(0)} ${yOf(track[0])}`;
+  for (let i = 0; i < track.length; i++) {
+    const y = yOf(track[i]);
+    const end = x(i + 1);
+    const changes = i < track.length - 1 && yOf(track[i + 1]) !== y;
+    d += ` L ${changes ? end - SLEW / 2 : end} ${y}`;
+    if (changes) d += ` L ${end + SLEW / 2} ${yOf(track[i + 1])}`;
+  }
+  return d;
+}
+
+/** Tramos contiguos de un mismo nivel, para rellenarlos de una sola pieza. */
+function runsOf(track: string[], level: string): { from: number; to: number }[] {
+  const runs: { from: number; to: number }[] = [];
+  let start = -1;
+  track.forEach((value, index) => {
+    if (value === level && start < 0) start = index;
+    if (value !== level && start >= 0) {
+      runs.push({ from: start, to: index });
+      start = -1;
+    }
+  });
+  if (start >= 0) runs.push({ from: start, to: track.length });
+  return runs;
+}
+
+const rows = tracks.map((track, index) => ({
+  name: track.name,
+  accent: track.accent === true,
+  top: rowTop[index],
+  hi: envelope(track.levels, rowTop[index], "hi"),
+  lo: envelope(track.levels, rowTop[index], "lo"),
+  unknown: runsOf(track.levels, "x"),
+  bus: runsOf(track.levels, "="),
+  values: track.values ?? [],
+}));
+
+// El carril 0 es el más cercano a la señal que la cota describe; los demás se
+// apilan hacia arriba.
+const spanRows = [
+  ...topSpans.map((span, index) => ({
+    span,
+    y: 12 + (topLaneCount - 1 - topLanes[index]) * SPAN_H + SPAN_H / 2,
+  })),
+  ...rowLanes.flatMap((row, index) =>
+    row.group.map((span, order) => ({
+      span,
+      y: rowTop[index] - SPAN_H / 2 - row.lanes[order] * SPAN_H,
+    })),
+  ),
+];
+
+const uid = `wf-${Math.random().toString(36).slice(2, 8)}`;
+---
+
+<figure class="waveform">
+  <div class="scroller">
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      width={width}
+      role="img"
+      aria-label={caption ?? "Diagrama de tiempos"}
+    >
+      <defs>
+        <pattern
+          id={`${uid}-hatch`}
+          width="7"
+          height="7"
+          patternUnits="userSpaceOnUse"
+          patternTransform="rotate(45)"
+        >
+          <line x1="0" y1="0" x2="0" y2="7" class="hatch"></line>
+        </pattern>
+        <marker
+          id={`${uid}-arrow`}
+          viewBox="0 0 8 8"
+          refX="7"
+          refY="4"
+          markerWidth="6"
+          markerHeight="6"
+          orient="auto"
+        >
+          <path d="M 0 0 L 8 4 L 0 8 z" class="arrowhead"></path>
+        </marker>
+      </defs>
+
+      {/* Las guías van primero para que ningún trazo quede tapado. */}
+      {
+        markers.map((marker) => (
+          <g class="marker">
+            <line
+              x1={x(marker.at)}
+              y1={originY - 6}
+              x2={x(marker.at)}
+              y2={height - 12}
+            />
+            {marker.label && (
+              <text x={x(marker.at)} y={height - 1} class="marker-label">
+                {marker.label}
+              </text>
+            )}
+          </g>
+        ))
+      }
+
+      {
+        rows.map((row) => (
+          <g class={row.accent ? "track accent" : "track"}>
+            <text x={LABEL_W - 12} y={row.top + AMP / 2} class="name">
+              {row.name}
+            </text>
+            <line
+              x1={LABEL_W}
+              y1={row.top + AMP}
+              x2={x(slots)}
+              y2={row.top + AMP}
+              class="baseline"
+            />
+            {row.bus.map((run) => (
+              <rect
+                x={x(run.from)}
+                y={row.top}
+                width={x(run.to) - x(run.from)}
+                height={AMP}
+                class="bus"
+              />
+            ))}
+            {row.unknown.map((run) => (
+              <rect
+                x={x(run.from)}
+                y={row.top}
+                width={x(run.to) - x(run.from)}
+                height={AMP}
+                fill={`url(#${uid}-hatch)`}
+                class="unknown"
+              />
+            ))}
+            <path d={row.hi} class="trace" />
+            <path d={row.lo} class="trace" />
+            {/* Un valor que empieza dentro de la banda necesita una separación
+                visible: si no, dos datos distintos parecen uno solo. */}
+            {row.values
+              .filter((value) => value.at > 0)
+              .map((value) => (
+                <line
+                  x1={x(value.at)}
+                  y1={row.top}
+                  x2={x(value.at)}
+                  y2={row.top + AMP}
+                  class="divider"
+                />
+              ))}
+            {row.values.map((value) => (
+              <text
+                x={x(value.at + (value.span ?? 1) / 2)}
+                y={row.top + AMP / 2}
+                class="value"
+              >
+                {value.text}
+              </text>
+            ))}
+          </g>
+        ))
+      }
+
+      {
+        markers
+          .filter((marker) => typeof marker.edge === "number")
+          .map((marker) => (
+            <path
+              d={`M ${x(marker.at)} ${rowTop[marker.edge as number] - 9} v 7`}
+              class="edge-mark"
+              marker-end={`url(#${uid}-arrow)`}
+            />
+          ))
+      }
+
+      {
+        spanRows.map(({ span, y }) => (
+          <g class="span">
+            <line x1={x(span.from)} y1={y - 8} x2={x(span.from)} y2={y + 8} />
+            <line x1={x(span.to)} y1={y - 8} x2={x(span.to)} y2={y + 8} />
+            <path
+              d={`M ${x(span.from)} ${y} H ${x(span.to)}`}
+              class="span-arrow"
+              marker-end={`url(#${uid}-arrow)`}
+              marker-start={`url(#${uid}-arrow)`}
+            />
+            <text x={(x(span.from) + x(span.to)) / 2} y={y - 5} class="span-label">
+              {span.label}
+            </text>
+          </g>
+        ))
+      }
+    </svg>
+  </div>
+
+  {caption && <figcaption>{caption}</figcaption>}
+</figure>
+
+<style>
+  .waveform {
+    margin: 1.75rem 0;
+  }
+
+  /* Un cronograma largo no se puede encoger sin volverse ilegible: se desplaza
+     en su propia caja en vez de estirar el ancho de la página. */
+  .waveform .scroller {
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+  }
+
+  .waveform svg {
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .waveform .trace {
+    fill: none;
+    stroke: var(--sl-color-white);
+    stroke-width: 2.2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+
+  .waveform .accent .trace {
+    stroke: var(--sl-color-accent-high);
+  }
+
+  .waveform .baseline {
+    stroke: var(--sl-color-gray-5);
+    stroke-width: 1;
+    stroke-dasharray: 3 4;
+  }
+
+  .waveform .name {
+    fill: var(--sl-color-gray-2);
+    font-size: 14px;
+    font-weight: 600;
+    text-anchor: end;
+    dominant-baseline: middle;
+    font-family: var(--sl-font-system-mono, monospace);
+  }
+
+  .waveform .accent .name {
+    fill: var(--sl-color-accent-high);
+  }
+
+  .waveform .value {
+    fill: var(--sl-color-gray-2);
+    font-size: 12px;
+    font-weight: 600;
+    text-anchor: middle;
+    dominant-baseline: middle;
+    font-family: var(--sl-font-system-mono, monospace);
+  }
+
+  .waveform .hatch {
+    stroke: var(--sl-color-gray-4);
+    stroke-width: 2;
+  }
+
+  .waveform .unknown {
+    stroke: none;
+  }
+
+  .waveform .bus {
+    fill: color-mix(in srgb, var(--sl-color-gray-5) 55%, transparent);
+    stroke: none;
+  }
+
+  .waveform .divider {
+    stroke: var(--sl-color-white);
+    stroke-width: 2.2;
+  }
+
+  .waveform .accent .divider {
+    stroke: var(--sl-color-accent-high);
+  }
+
+  .waveform .marker line {
+    stroke: var(--sl-color-accent);
+    stroke-width: 1.2;
+    stroke-dasharray: 4 4;
+  }
+
+  .waveform .marker-label {
+    fill: var(--sl-color-accent-high);
+    font-size: 12px;
+    font-weight: 600;
+    text-anchor: middle;
+  }
+
+  .waveform .edge-mark {
+    stroke: var(--sl-color-accent);
+    stroke-width: 1.6;
+    fill: none;
+  }
+
+  .waveform .arrowhead {
+    fill: var(--sl-color-gray-3);
+  }
+
+  .waveform .span line,
+  .waveform .span-arrow {
+    stroke: var(--sl-color-gray-3);
+    stroke-width: 1.2;
+    fill: none;
+  }
+
+  .waveform .span-label {
+    fill: var(--sl-color-gray-2);
+    font-size: 12px;
+    font-weight: 600;
+    text-anchor: middle;
+    paint-order: stroke;
+    stroke: var(--sl-color-bg);
+    stroke-width: 4px;
+  }
+
+  .waveform figcaption {
+    margin-top: 0.7rem;
+    font-size: var(--sl-text-sm);
+    line-height: 1.5;
+    color: var(--sl-color-gray-3);
+    text-wrap: balance;
+  }
+</style>
