@@ -1,0 +1,211 @@
+---
+title: Lógica secuencial
+description: Diferencia entre lógica combinacional y secuencial, funcionamiento de latches, flip-flops, registros y contadores.
+sidebar:
+  order: 7
+---
+
+import Schematic from '../../../components/Schematic.astro';
+import Waveform from '../../../components/Waveform.astro';
+import BlockFlow from '../../../components/BlockFlow.astro';
+
+En un circuito combinacional, las mismas entradas producen siempre la misma salida. En un circuito secuencial, la salida también depende de un **estado guardado**. Gracias a ese estado se puede recordar una contraseña, contar errores o conservar una autorización aunque el botón ya se haya soltado.
+
+## Estado actual y estado siguiente
+
+Un circuito secuencial se entiende separando dos momentos:
+
+```text
+estado siguiente = función(estado actual, entradas)
+```
+
+<BlockFlow
+  steps={[
+    { title: 'entradas', sub: 'botones, DIP' },
+    { title: 'lógica combinacional', sub: 'calcula el siguiente estado' },
+    { title: 'flip-flops', sub: 'guardan el estado' },
+    { title: 'salidas', sub: 'LEDs, displays' },
+  ]}
+  links={['', 'D', 'Q']}
+  feedback={{ from: 2, to: 1, label: 'estado actual' }}
+  aside={{ at: 2, title: 'reloj', sub: 'decide cuándo' }}
+  caption="Lo que convierte el circuito en secuencial es la flecha de vuelta: la lógica ve su propio resultado anterior. El reloj no aporta datos, solo decide en qué instante el estado siguiente pasa a ser el actual."
+/>
+
+El estado siguiente se calcula con compuertas, pero solo pasa a ser el nuevo estado cuando llega el evento de reloj correspondiente.
+
+### Ejemplo: contador de 2 bits
+
+| Estado actual | Estado siguiente |
+|:---:|:---:|
+| 00 | 01 |
+| 01 | 10 |
+| 10 | 11 |
+| 11 | 00 |
+
+Sin memoria, el circuito no sabría cuál fila debe seguir.
+
+## Latch y flip-flop no son exactamente lo mismo
+
+- Un **latch** responde durante todo el tiempo que su habilitación permanece activa: es sensible a nivel.
+- Un **flip-flop** captura el dato solo en un flanco del reloj: es sensible al cambio de nivel.
+
+En conversación se suele llamar “latch” a cualquier señal que queda retenida, pero técnicamente el `74LS74` utilizado para `AUTH_OK` contiene **flip-flops tipo D**.
+
+## Flip-flop tipo D
+
+El tipo D guarda un bit. En el flanco activo copia `D` hacia `Q` y lo conserva hasta el próximo flanco:
+
+| Evento | `D` | `Q` después del evento |
+|---|:---:|:---:|
+| Sin flanco | X | No cambia |
+| Flanco activo | 0 | 0 |
+| Flanco activo | 1 | 1 |
+
+`X` significa “no importa”. La salida complementaria `/Q`, cuando existe, entrega el valor contrario.
+
+<Waveform
+  signals={[
+    { name: 'CLK', wave: '01010101' },
+    { name: 'D', wave: '00111100' },
+    { name: 'Q', wave: '00011110', accent: true },
+  ]}
+  markers={[{ at: 1 }, { at: 3, label: 'captura' }, { at: 5 }, { at: 7 }]}
+  caption="Q solo cambia en los flancos de subida, marcados con la línea punteada. Entre flancos, D puede moverse todo lo que quiera: el flip-flop no se entera."
+/>
+
+Fíjate en el último flanco: `D` ya había vuelto a `0` antes de que subiera el reloj, y por eso `Q` baja. Lo que se guarda es el valor que `D` tenía **justo antes** del flanco, no el que tiene después.
+
+<Schematic
+  src="fundamentos/pinout_74ls74.svg"
+  alt="Pinout del 74LS74 en DIP-14 con la tabla de función del flip-flop D"
+  caption="Dos flip-flops independientes en un solo encapsulado. Cada uno tiene su reloj, así que pueden gobernarse por separado."
+/>
+
+### Ejemplo: conservar una autorización
+
+1. El comparador produce `COINCIDE = 1` durante la validación.
+2. Esa señal llega a `D`.
+3. El pulso de validar produce el flanco de reloj.
+4. `Q` pasa a `1` y `AUTH_OK` queda guardado, aunque `COINCIDE` cambie después.
+
+## Entradas asíncronas
+
+Muchos flip-flops incluyen `PRESET` y `CLEAR`. Actúan sin esperar el reloj y suelen ser **activas en bajo**, por eso aparecen como `/PRE` y `/CLR`.
+
+- `/CLR = 0` fuerza `Q = 0`.
+- `/PRE = 0` fuerza `Q = 1`.
+- Con ambas inactivas, el reloj controla el dato.
+
+No se deben activar las dos simultáneamente salvo que la hoja de datos lo permita expresamente. Las entradas asíncronas no utilizadas tampoco se dejan flotando: se fijan en su nivel inactivo.
+
+## Registro paralelo
+
+Un registro reúne varios flip-flops que comparten reloj. El `74LS174` contiene seis flip-flops D y puede guardar una palabra completa en un solo flanco.
+
+<Schematic
+  src="fundamentos/pinout_74ls174.svg"
+  alt="Pinout del 74LS174 en DIP-16, registro de seis flip-flops D con reloj y borrado comunes"
+  caption="Un solo CLK y un solo /MR para los seis bits: no se puede guardar medio dato. Para la contraseña de 4 bits de la Práctica 3 sobran dos flip-flops, que simplemente se dejan sin cablear."
+/>
+
+### Ejemplo: guardar una contraseña de 4 bits
+
+```text
+DIP de contraseña:  1010
+pulso GUARDAR:      ↑
+registro Q[3:0]:    1010
+```
+
+Después del pulso se pueden mover los interruptores para escribir el intento del usuario; la contraseña almacenada permanece en `Q` hasta otro pulso de guardado o un reinicio.
+
+## Contadores con flip-flops
+
+Un contador es un registro cuya lógica de siguiente estado suma o resta una unidad. Con dos flip-flops se obtienen cuatro estados; con cuatro, dieciséis.
+
+### Contador ascendente de 2 bits
+
+```text
+00 → 01 → 10 → 11 → 00
+```
+
+Una forma síncrona de construirlo es:
+
+```text
+D0 = /Q0
+D1 = Q1 XOR Q0
+```
+
+Los dos flip-flops reciben el mismo reloj. `Q0` cambia en cada pulso y `Q1` cambia cuando el bit inferior exige un acarreo.
+
+<Waveform
+  signals={[
+    { name: 'CLK', wave: '0101010101' },
+    { name: 'Q0', wave: '0110011001' },
+    { name: 'Q1', wave: '0001111000', accent: true },
+  ]}
+  markers={[{ at: 1 }, { at: 3 }, { at: 5 }, { at: 7 }, { at: 9, label: 'vuelve a 00' }]}
+  caption="Leyendo Q1Q0 después de cada flanco sale 00, 01, 10, 11 y otra vez 00. Q0 conmuta en todos los pulsos; Q1 solo cuando Q0 venía de valer 1."
+/>
+
+Que `Q1` tenga el doble de periodo que `Q0` no es casualidad: es exactamente lo que significa que sea el bit de más peso. Un contador de `n` bits divide la frecuencia del reloj entre `2ⁿ`.
+
+### Contador descendente
+
+```text
+11 → 10 → 01 → 00 → 11
+```
+
+La lógica combinacional cambia, pero el principio es el mismo: calcular el próximo estado y capturarlo con un flanco.
+
+## Carga, habilitación y reinicio
+
+Un contador útil necesita algo más que contar:
+
+- **Enable:** decide si el próximo pulso cambia el estado.
+- **Load:** carga un valor inicial, por ejemplo `1010` para empezar en 10.
+- **Clear/Reset:** vuelve a un estado conocido.
+
+### Ejemplo: cuenta regresiva desde 10
+
+1. `LOAD_10` carga `1010`.
+2. Cada pulso válido resta uno.
+3. Al detectar `0000`, la lógica detiene la habilitación.
+
+Si no se carga explícitamente el 10, el contador puede heredar el valor que dejó la fase anterior y comenzar desde un número inesperado.
+
+## Temporización: setup y hold
+
+El dato no puede cambiar exactamente al mismo tiempo que el reloj. Debe permanecer estable un pequeño intervalo antes (**setup**) y después (**hold**) del flanco.
+
+<Waveform
+  signals={[
+    { name: 'CLK', wave: '000111' },
+    { name: 'D', wave: 'xx1111' },
+    { name: 'Q', wave: '000011', accent: true },
+  ]}
+  markers={[{ at: 3, label: 'flanco' }]}
+  spans={[
+    { from: 2, to: 3, label: 't_su', at: 1 },
+    { from: 3, to: 4, label: 't_h', at: 1 },
+    { from: 3, to: 4, label: 't_CO', at: 2 },
+  ]}
+  caption="La franja rayada es el intervalo en que D todavía no vale nada definido. Debe terminar antes de que empiece t_su, y D no puede volver a moverse hasta que pase t_h."
+/>
+
+En montajes lentos estos tiempos parecen insignificantes, pero un botón con rebote o señales con caminos de distinta longitud pueden violarlos.
+
+También existe un retardo entre el flanco y el cambio de `Q`, marcado arriba como `t_CO`. Por eso no se debe suponer que todos los bloques responden de manera instantánea: la salida de un flip-flop llega a la entrada del siguiente **después** del flanco que la produjo, y eso es justamente lo que permite encadenarlos.
+
+## Errores que cuestan tiempo
+
+- **No definir el estado inicial.** Al encender, el contador comienza en un valor desconocido.
+- **Confundir latch con flip-flop.** Uno responde a nivel y el otro a flanco.
+- **Dejar `/CLR` o `/PRE` flotando.** El estado cambia sin explicación aparente.
+- **Usar un botón sin antirrebote como reloj.** Una pulsación produce varios conteos.
+- **Generar reloj con lógica combinacional larga.** Los pulsos espurios también cuentan.
+- **Olvidar la carga inicial del descendente.** Empieza desde un estado residual.
+
+## Dónde se aplica esto
+
+La [Práctica 3](../../practicas/practica-3/) usa un `74LS174` para la contraseña, `74LS74` para autorización y conteo de errores, y contadores para las fases del carrusel. La calidad de los pulsos que los controlan se explica en [Reloj, pulsadores y rebote](../reloj-y-rebote/).
