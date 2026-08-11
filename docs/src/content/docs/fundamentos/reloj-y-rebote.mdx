@@ -1,0 +1,182 @@
+---
+title: Reloj, pulsadores y rebote
+description: Qué es una señal de reloj, cómo interpretarla y por qué un pulsador puede producir varios cambios en un circuito secuencial.
+sidebar:
+  order: 8
+---
+
+import Schematic from '../../../components/Schematic.astro';
+import Waveform from '../../../components/Waveform.astro';
+
+Un circuito secuencial necesita saber **cuándo** debe guardar un dato o avanzar al estado siguiente. Esa orden la da el reloj. Puede venir de un oscilador, un temporizador, un Arduino o un pulsador, pero debe llegar como una señal limpia.
+
+## Qué es una señal de reloj
+
+Un reloj alterna entre nivel bajo y alto:
+
+<Waveform
+  signals={[{ name: 'CLK', wave: '01010101', accent: true }]}
+  markers={[{ at: 1, label: '↑ subida' }, { at: 4, label: '↓ bajada' }]}
+  spans={[
+    { from: 1, to: 3, label: 'periodo T', at: 'top' },
+    { from: 1, to: 2, label: 'en alto', at: 'top' },
+  ]}
+  caption="Un ciclo completo es lo que va de un flanco de subida al siguiente. El ciclo de trabajo es qué porción de ese tiempo la señal pasa en alto: aquí, la mitad."
+/>
+
+- **Flanco de subida:** transición de `0` a `1`.
+- **Flanco de bajada:** transición de `1` a `0`.
+- **Periodo (`T`):** tiempo que tarda un ciclo completo.
+- **Frecuencia (`f`):** ciclos por segundo, medida en hertz.
+- **Ciclo de trabajo:** porcentaje del periodo durante el cual la señal está en alto.
+
+```text
+f = 1 / T
+```
+
+### Ejemplo
+
+Si el Arduino produce un pulso cada segundo:
+
+```text
+T = 1 s
+f = 1 / 1 s = 1 Hz
+```
+
+Un contador que cambia en cada flanco ascendente avanzará una vez por segundo. Si el periodo baja a `100 ms`, la frecuencia sube a `10 Hz` y avanzará diez veces por segundo.
+
+## El circuito responde al flanco, no al tiempo presionado
+
+En un flip-flop de flanco ascendente, mantener el reloj en `1` durante dos segundos no provoca dos cambios. Solo cuenta la transición inicial de `0` a `1`. Para producir otro cambio, la señal debe volver a `0` y subir nuevamente.
+
+Este comportamiento permite que todos los flip-flops de un contador cambien coordinadamente aunque el pulso tenga una duración apreciable.
+
+## Qué es el rebote mecánico
+
+Los contactos de un pulsador no se unen de manera perfecta. Durante unos milisegundos chocan y se separan varias veces:
+
+<Waveform
+  signals={[
+    { name: 'ideal', wave: '0011111111' },
+    { name: 'real', wave: '0010101111', accent: true },
+    {
+      name: 'cuenta',
+      wave: '==========',
+      values: [
+        { at: 0, span: 2, text: '0' },
+        { at: 2, span: 2, text: '1' },
+        { at: 4, span: 2, text: '2' },
+        { at: 6, span: 4, text: '3' },
+      ],
+    },
+  ]}
+  markers={[{ at: 2 }, { at: 4 }, { at: 6 }]}
+  spans={[{ from: 2, to: 6, label: 'rebote: unos ms', at: 'top' }]}
+  caption="Una sola pulsación, tres flancos de subida. El contador de abajo no está fallando: cuenta exactamente lo que le llega."
+/>
+
+Para una persona fue una sola pulsación. Para un contador fueron varios flancos y podría pasar de `0` a `3` de inmediato.
+
+La duración del rebote cambia entre pulsadores; no se debe asumir que todos duran exactamente lo mismo.
+
+## Antirrebote por software
+
+Un microcontrolador puede aceptar el primer cambio y esperar que la señal se estabilice antes de aceptar otro.
+
+Ejemplo conceptual con una ventana de `40 ms`:
+
+```cpp
+if (cambioDetectado && millis() - ultimoCambio >= 40) {
+  ultimoCambio = millis();
+  procesarPulsacion();
+}
+```
+
+La espera no debe bloquear todo el programa con un retraso largo si también hay que atender comunicaciones o actuadores. Comparar tiempos con `millis()` permite continuar con las demás tareas.
+
+Este método se utiliza en el botón de puerta del [proyecto de casa inteligente](../../proyectos/casa-inteligente/).
+
+## Antirrebote por hardware
+
+Una solución sencilla combina:
+
+- resistencia pull-up o pull-down para definir el estado,
+- capacitor para suavizar los cambios rápidos,
+- entrada con histéresis, por ejemplo un disparador Schmitt, para recuperar un flanco limpio.
+
+<Schematic
+  src="fundamentos/antirrebote_rc.svg"
+  alt="Pulsador con resistencia de pull-down, filtro RC y un inversor Schmitt 74HC14 que reconstruye el flanco"
+  caption="El pull-down define el nivel, la red RC borra los rebotes y el Schmitt devuelve un flanco único y vertical. Los tres hacen falta: sin el Schmitt, la rampa lenta del capacitor puede provocar varias conmutaciones en la entrada siguiente."
+/>
+
+<Waveform
+  signals={[
+    { name: 'pulsador', wave: '0010101111' },
+    { name: 'tras el RC', wave: '001xxx1111' },
+    { name: '/CLK', wave: '1111110000', accent: true },
+  ]}
+  caption="La banda rayada es la rampa del capacitor: una tensión que sube despacio y no es ni 0 ni 1. El Schmitt decide una sola vez y entrega un flanco limpio, pero invertido. Si el flip-flop necesita flanco de subida, se pasa por un segundo inversor del mismo integrado."
+/>
+
+:::note[Por qué 74HC14 y no 74LS14]
+La resistencia de `10 kΩ` del filtro está en serie con la entrada. Una entrada `74LS` en bajo entrega hasta `0,4 mA`, que sobre `10 kΩ` produciría una caída de `4 V`: el nivel bajo nunca se alcanzaría. Un `74HC14` es CMOS y su entrada casi no consume corriente, así que la caída es despreciable. Es el mismo razonamiento de [Entradas con DIP switch](../entradas-dip-switch/), aplicado aquí a la resistencia del filtro.
+:::
+
+El capacitor y la resistencia forman una constante de tiempo:
+
+```text
+τ = R · C
+```
+
+### Ejemplo aproximado
+
+Con `R = 10 kΩ` y `C = 1 µF`:
+
+```text
+τ = 10 000 · 0,000001 = 0,01 s = 10 ms
+```
+
+La transición se suaviza durante varios milisegundos. El valor exacto debe adaptarse al circuito y al umbral de la entrada; una red RC sola puede producir una rampa lenta, por lo que es preferible acompañarla con una entrada Schmitt.
+
+:::caution[Pull-down para 74LS]
+El valor de `10 kΩ` del ejemplo RC no debe copiarse automáticamente como pull-down de una entrada `74LS`. Como se explica en [Entradas con DIP switch](../entradas-dip-switch/), una entrada TTL LS puede necesitar un pull-down cercano a `1 kΩ`. El filtro se calcula considerando esa carga o se coloca una etapa Schmitt entre el botón y el reloj.
+:::
+
+## Qué fuente de reloj conviene
+
+| Fuente | Ventaja | Precaución |
+|---|---|---|
+| Pulsador | Permite avanzar paso a paso | Necesita antirrebote |
+| Arduino | Periodo fácil de modificar | Debe compartir GND con la lógica |
+| Temporizador 555 | Funciona sin programa | Hay que calcular `R` y `C` |
+| Oscilador integrado | Señal estable | Puede ser demasiado rápido para observarla |
+
+Para depurar un contador, una frecuencia lenta o un avance manual limpio permite observar cada estado. Una vez validado, se conecta el reloj definitivo.
+
+## No se debe “arreglar” un reloj con compuertas al azar
+
+Una red combinacional puede generar pulsos muy cortos cuando sus entradas no cambian exactamente al mismo tiempo. Si esa salida se conecta al reloj, los flip-flops pueden contar eventos que no aparecen en la tabla de verdad.
+
+Las señales de habilitación deben controlar la entrada `ENABLE` o la lógica del próximo estado cuando sea posible; no conviene cortar el reloj con una AND común sin analizar los pulsos que puede generar.
+
+## Método de prueba
+
+1. Desconecta el reloj de los flip-flops.
+2. Mide la señal del generador con un LED, multímetro con frecuencia u osciloscopio.
+3. Comprueba que existe un solo flanco por evento.
+4. Conecta un contador pequeño y verifica la secuencia completa.
+5. Integra la habilitación y el reinicio.
+
+## Errores que cuestan tiempo
+
+- **Conectar un botón directamente al reloj.** Un toque produce varios conteos.
+- **Confundir frecuencia con periodo.** Reducir el periodo aumenta la frecuencia.
+- **No compartir tierra con el Arduino.** Los pulsos no tienen una referencia común.
+- **Usar retrasos bloqueantes para todo.** El sistema deja de atender otras funciones.
+- **Conectar una salida combinacional con glitches al reloj.** Aparecen estados saltados.
+- **Probar primero a velocidad alta.** No se alcanza a observar dónde falla la secuencia.
+
+## Dónde se aplica esto
+
+La [Práctica 3](../../practicas/practica-3/) utiliza pulsos del Arduino para avanzar los contadores, mientras que el [proyecto final](../../proyectos/casa-inteligente/) aplica antirrebote al botón de la puerta. Para comprender qué guarda cada pulso, ver [Lógica secuencial](../logica-secuencial/).
