@@ -1,0 +1,134 @@
+---
+title: Etapas de potencia
+description: Cómo controlar motores y otras cargas inductivas con transistores, diodos de protección y puentes H sin dañar la lógica.
+sidebar:
+  order: 10
+---
+
+import Schematic from '../../../components/Schematic.astro';
+import BlockFlow from '../../../components/BlockFlow.astro';
+
+Una salida lógica comunica una decisión; no necesariamente entrega la corriente para ejecutar esa decisión. Un motor puede exigir cientos de miliamperios, mientras que una compuerta o un pin de microcontrolador está pensado para señales mucho menores. Entre ambos hace falta una **etapa de potencia**.
+
+## Lógica y carga cumplen trabajos distintos
+
+<BlockFlow
+  steps={[
+    { title: 'señal de control', sub: 'compuerta o pin' },
+    { title: 'transistor / driver', sub: 'la etapa de potencia' },
+    { title: 'motor', sub: 'la carga' },
+  ]}
+  links={['unos mA', 'cientos de mA']}
+  aside={{ at: 1, title: 'fuente de potencia', sub: 'de aquí sale la corriente' }}
+  caption="La corriente grande nunca atraviesa la señal de control: entra por abajo, desde la fuente, y sale por el transistor hacia tierra."
+/>
+
+La lógica enciende o apaga el transistor. La corriente grande circula desde la fuente de potencia a través del motor y el transistor, no a través de la salida lógica.
+
+## Transistor como interruptor de carga
+
+En un control básico de motor con NPN:
+
+- el emisor va a GND;
+- el colector va a una terminal del motor;
+- la otra terminal del motor va a la fuente;
+- la base recibe la señal mediante una resistencia;
+- la tierra de control y la de potencia deben compartir referencia.
+
+La resistencia de base se calcula con la corriente que el transistor debe manejar, igual que en [Compuertas con transistores](../compuertas-transistorizadas/), pero ahora se verifica además que el transistor soporte la corriente de arranque del motor y la potencia disipada.
+
+### Ejemplo de cálculo
+
+Supongamos un motor que toma `100 mA` en funcionamiento y se elige una beta forzada de 10:
+
+```text
+I_B = 100 mA / 10 = 10 mA
+R_B = (5 V − 0,7 V) / 10 mA = 430 Ω
+```
+
+Se podría elegir `470 Ω`, siempre que la salida de control pueda entregar esa corriente y el transistor tolere el arranque. Si el motor exige más corriente, suele ser mejor un MOSFET lógico o un driver integrado que forzar un pin o una compuerta TTL.
+
+:::caution[La corriente de arranque es mayor]
+La corriente indicada durante giro libre no es el peor caso. Al arrancar o quedar trabado, el motor puede demandar varias veces más. La etapa se selecciona con ese máximo, no solo con la corriente observada cuando ya está girando.
+:::
+
+## Por qué hace falta un diodo
+
+Un motor contiene bobinas y almacena energía en su campo magnético. Al cortar la corriente, intenta mantenerla y puede producir un pico de tensión en sentido contrario. Ese pico puede dañar el transistor o reiniciar la lógica.
+
+En un control de un solo sentido se coloca un diodo de rueda libre en paralelo con el motor, normalmente bloqueado durante el funcionamiento:
+
+<Schematic
+  src="fundamentos/etapa_potencia_motor.svg"
+  alt="Transistor NPN controlando un motor, con resistencia de base y diodo de rueda libre en paralelo con el motor"
+  caption="El diodo va al revés de como conduciría la fuente: por eso está bloqueado mientras el motor gira, y solo entra en juego cuando el transistor se apaga."
+/>
+
+Al apagar el transistor, el diodo ofrece un camino seguro para que la corriente de la bobina disminuya. Si lo colocas al revés, quedará conduciendo permanentemente y cortocircuitará la fuente del motor: es un error que se detecta rápido porque el diodo se calienta de inmediato.
+
+## Puente H: invertir el giro
+
+Para cambiar la dirección se invierte la polaridad aplicada al motor. Un puente H usa cuatro interruptores:
+
+<Schematic
+  src="fundamentos/puente_h.svg"
+  alt="Puente H con cuatro transistores, sus diodos de protección y el motor entre los dos nodos centrales"
+  caption="El motor cuelga entre los dos nodos medios. Encender Q1 y Q4 lo alimenta en un sentido; encender Q2 y Q3 lo alimenta en el contrario. Cada transistor lleva su propio diodo."
+/>
+
+| Q1 | Q2 | Q3 | Q4 | Resultado |
+|:---:|:---:|:---:|:---:|---|
+| 1 | 0 | 0 | 1 | Giro en un sentido |
+| 0 | 1 | 1 | 0 | Giro contrario |
+| 0 | 0 | 0 | 0 | Motor libre/apagado |
+| 1 | 1 | 1 | 1 | **Estado prohibido** |
+
+En realidad, el estado peligroso aparece cuando se activan simultáneamente el transistor superior y el inferior de una misma rama —`Q1` con `Q3`, o `Q2` con `Q4`—: se crea un camino directo entre fuente y tierra, llamado *shoot-through*. Míralo en el esquema: esa pareja forma una línea recta desde `V_MOT` hasta GND sin que el motor esté en medio, así que nada limita la corriente.
+
+## Tiempo muerto al cambiar de dirección
+
+Los transistores no se apagan instantáneamente. Al pasar de una dirección a otra conviene:
+
+1. desactivar ambos sentidos;
+2. esperar un intervalo breve;
+3. activar el sentido nuevo.
+
+Ese tiempo muerto evita que dos transistores opuestos conduzcan al mismo tiempo. Además, invertir bruscamente un motor que todavía gira produce una corriente alta y esfuerzo mecánico.
+
+## Diodos en un puente H
+
+La corriente inductiva puede circular en ambos sentidos, por lo que se necesita una ruta de protección adecuada para cada transistor. Algunos drivers integrados y ciertos MOSFET ya incorporan parte de estas rutas; en un puente discreto deben diseñarse explícitamente.
+
+El `1N4007` funciona en conmutación lenta como la del carrusel, pero para PWM rápido suele preferirse un diodo rápido o Schottky adecuado a la corriente.
+
+## Fuente separada, referencia común
+
+“Fuente separada” no siempre significa circuito completamente aislado. En un control convencional:
+
+- la fuente del motor entrega la corriente de potencia;
+- la fuente lógica mantiene estables los 5 V;
+- ambas tierras se conectan en un punto común para que `0` y `1` tengan la misma referencia.
+
+Si las tierras no se unen y no existe aislamiento eléctrico, la tensión de control queda indefinida. Si se busca aislamiento real, hacen falta optoacopladores o un driver aislado.
+
+## Método de prueba seguro
+
+1. Prueba la lógica de dirección sin motor, usando LEDs de diagnóstico.
+2. Verifica que nunca se activen los estados prohibidos.
+3. Prueba el puente con una fuente limitada en corriente.
+4. Conecta el motor sin carga mecánica.
+5. Mide caída de tensión y temperatura de los transistores.
+6. Añade la carga y prueba arranque, frenado e inversión.
+
+## Errores que cuestan tiempo
+
+- **Conectar el motor directamente a una salida lógica.** Puede destruirla o reiniciar el sistema.
+- **Omitir los diodos.** Los picos aparecen justo al apagar o invertir.
+- **No considerar la corriente de arranque.** Funciona en vacío y falla bajo carga.
+- **Activar los dos transistores de una rama.** Se cortocircuita la fuente.
+- **Invertir el giro sin detener primero.** Aumenta corriente y esfuerzo mecánico.
+- **Separar fuentes sin compartir GND.** La señal de control pierde referencia.
+
+## Dónde se aplica esto
+
+La [Práctica 3](../../practicas/practica-3/) usa un puente H discreto con `2N2222A` y `1N4007` para invertir el carrusel. El [proyecto final](../../proyectos/casa-inteligente/) controla un ventilador y un servomotor, donde también debe separarse señal, alimentación y carga.
