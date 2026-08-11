@@ -1,0 +1,123 @@
+---
+title: Alimentación y desacoplamiento TTL
+description: Cómo alimentar varios integrados 74LS de forma estable, colocar capacitores de desacoplamiento y evitar entradas indefinidas.
+sidebar:
+  order: 9
+---
+
+import Schematic from '../../../components/Schematic.astro';
+
+Un circuito puede tener ecuaciones correctas y aun así fallar si la alimentación cae o se llena de ruido. En simulación `V_CC` suele ser perfecto; en una protoboard la corriente atraviesa cables, contactos y rieles que tienen resistencia e inductancia.
+
+## Alimentación de la familia 74LS
+
+La familia `74LS` está diseñada para trabajar alrededor de **5 V**. Como regla de montaje:
+
+- usa una fuente regulada de 5 V,
+- conecta todos los `V_CC` y todos los `GND`,
+- comparte GND con Arduino, generadores y módulos externos,
+- consulta la hoja de datos del integrado concreto antes de aplicar otra tensión.
+
+En muchos DIP-14 de compuertas, `V_CC` está en el pin 14 y GND en el 7, pero **no es una regla universal para todos los integrados**. Por ejemplo, encapsulados con más pines distribuyen la alimentación de otra manera.
+
+## Por qué aparece ruido al conmutar
+
+Cuando varias salidas cambian a la vez, el integrado pide un pulso breve de corriente. Los cables y rieles no pueden entregarlo instantáneamente sin que la tensión local se mueva. El resultado puede ser:
+
+- un falso pulso de reloj,
+- un contador que salta estados,
+- un display que parpadea,
+- un reinicio inesperado,
+- una falla que aparece solo cuando se enciende el motor.
+
+## Un capacitor de 100 nF por integrado
+
+Se coloca un capacitor cerámico de **100 nF** entre `V_CC` y GND, físicamente cerca de los pines de alimentación de cada integrado.
+
+<Schematic
+  src="fundamentos/desacoplo_74ls.svg"
+  alt="Rieles de 5 V y GND con un capacitor de 10 µF en la entrada y un capacitor de 100 nF junto a cada uno de los tres integrados"
+  caption="Eléctricamente todos los capacitores están en paralelo, así que el esquema podría dibujarse con los cuatro juntos. Se dibuja así porque lo que importa no es la conexión, sino dónde queda cada uno en la protoboard."
+/>
+
+Durante un cambio rápido, el capacitor entrega localmente la corriente necesaria. Después se recarga desde la fuente. Si se coloca al otro extremo de la protoboard, los cables entre el capacitor y el integrado reducen su efectividad.
+
+Este es el motivo por el que este diagrama es de **colocación** y no de conexión: un simulador daría el mismo resultado pusieras el capacitor donde lo pusieras, y en la protoboard no.
+
+### Ejemplo: placa con seis TTL
+
+Una placa con seis integrados debería comenzar con:
+
+- seis capacitores cerámicos de 100 nF, uno junto a cada integrado;
+- un capacitor de reserva, por ejemplo entre `10 µF` y `100 µF`, cerca de la entrada de alimentación;
+- puentes en cada corte de los rieles;
+- medición de 5 V en el extremo más alejado, no solamente junto a la fuente.
+
+El capacitor grande ayuda con cambios más lentos y el de 100 nF con cambios rápidos. Uno no reemplaza al otro.
+
+## Caída de tensión en los rieles
+
+Todo cable tiene alguna resistencia. La caída se estima con la ley de Ohm:
+
+```text
+V_caída = I · R
+```
+
+Si el recorrido de alimentación tiene `0,5 Ω` entre cables y contactos, y una carga transitoria toma `300 mA`:
+
+```text
+V_caída = 0,3 A · 0,5 Ω = 0,15 V
+```
+
+El problema puede ser mayor durante el arranque de un motor. Por eso se alimenta la etapa de potencia con rutas apropiadas y no se hace circular su corriente por el mismo cable fino que alimenta la lógica.
+
+## Entradas no utilizadas
+
+Las entradas de compuertas que sobren deben quedar en un nivel definido compatible con la función:
+
+- una entrada AND puede fijarse en `1` para no bloquear las demás;
+- una entrada OR puede fijarse en `0` para no activar la salida;
+- entradas de reloj, reset y habilitación se fijan según su estado inactivo.
+
+No se conectan a tierra o a `V_CC` “porque sí”: primero se revisa si la señal es activa en alto o en bajo. Las **salidas** no utilizadas se dejan sin conectar; nunca se amarran directamente a alimentación.
+
+## Presupuesto de corriente
+
+La fuente debe alimentar:
+
+```text
+I_total ≈ I_integrados + I_LED + I_transistores + I_módulos
+```
+
+### Ejemplo estimado
+
+Si hay 8 segmentos encendidos a 8 mA, consumen cerca de `64 mA`. A eso se suma el consumo de los TTL, indicadores y demás módulos. Un motor o servo puede requerir picos mucho mayores y se calcula por separado con su hoja de datos o medición.
+
+No se dimensiona la fuente usando solo el consumo promedio. También debe soportar los picos sin que los 5 V caigan.
+
+## Secuencia recomendada de montaje
+
+1. Con la fuente apagada, comprueba que no haya continuidad directa entre `V_CC` y GND.
+2. Puentea los rieles divididos.
+3. Enciende sin integrados y mide la tensión.
+4. Apaga y coloca los integrados con sus capacitores.
+5. Enciende con límite de corriente, si la fuente lo permite.
+6. Mide `V_CC` junto al integrado más lejano.
+7. Añade cargas por bloques y vigila consumo y temperatura.
+
+:::caution[Si un integrado se calienta]
+Apaga la fuente. Revisa orientación, pinout, salidas conectadas entre sí y posibles cortocircuitos. Un TTL no debería calentarse de forma notable en un montaje normal.
+:::
+
+## Errores que cuestan tiempo
+
+- **Un solo capacitor para toda la placa.** No resuelve los pulsos locales de cada integrado.
+- **Capacitores lejos de los pines.** El cableado queda dentro del camino rápido.
+- **Suponer que todo DIP-14 usa pines 14 y 7.** Hay que verificarlo.
+- **Dejar entradas de control flotando.** El bloque se habilita o reinicia sin aviso.
+- **Alimentar motor y lógica por el mismo camino estrecho.** El reloj y los contadores se vuelven inestables.
+- **Medir únicamente en la salida de la fuente.** El voltaje puede caer al final del riel.
+
+## Dónde se aplica esto
+
+La alimentación estable importa especialmente en las prácticas 2 y 3, donde funcionan muchos integrados a la vez. Para la distribución física de los rieles, ver [El protoboard](../protoboard/); para separar motores de la lógica, ver [Etapas de potencia](../etapas-de-potencia/).
