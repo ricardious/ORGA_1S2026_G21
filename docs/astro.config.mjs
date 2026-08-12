@@ -5,6 +5,7 @@ import { ion } from "starlight-ion-theme";
 
 const site = "https://ricardious.github.io";
 const base = "/ORGA_1S2026_G21";
+const repo = "https://github.com/ricardious/ORGA_1S2026_G21";
 
 // https://astro.build/config
 export default defineConfig({
@@ -12,18 +13,49 @@ export default defineConfig({
   base,
   integrations: [
     starlight({
-      title: "ORGA_1S2026_G21",
+      title: "ORGA 1S2026 — Grupo 21",
+      description:
+        "Documentación final del curso de Organización Computacional: prácticas y proyecto del Grupo 21, Semestre 1 de 2026.",
       locales: {
         root: {
           label: "Español",
           lang: "es",
         },
       },
+      favicon: "/favicon.svg",
+      lastUpdated: true,
+      editLink: {
+        baseUrl: `${repo}/edit/main/docs/`,
+      },
+      head: [
+        {
+          tag: "meta",
+          attrs: {
+            property: "og:image",
+            content: `${site}${base}/og-image.webp`,
+          },
+        },
+        {
+          tag: "meta",
+          attrs: { property: "og:image:width", content: "800" },
+        },
+        {
+          tag: "meta",
+          attrs: { property: "og:image:height", content: "800" },
+        },
+        {
+          tag: "meta",
+          attrs: {
+            name: "twitter:image",
+            content: `${site}${base}/og-image.webp`,
+          },
+        },
+      ],
       social: [
         {
           icon: "github",
           label: "GitHub",
-          href: "https://github.com/ricardious/ORGA_1S2026_G21",
+          href: repo,
         },
       ],
       sidebar: [
