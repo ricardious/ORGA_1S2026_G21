@@ -23,12 +23,15 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          # Historial completo: Starlight deriva "Última actualización" de git log.
+          fetch-depth: 0
 
       - name: Install, build, and upload site
         uses: withastro/action@v6
         with:
           path: docs
-          package-manager: pnpm@latest
+          package-manager: pnpm@10.18.2
           node-version: 22
           build-cmd: pnpm run build
 
