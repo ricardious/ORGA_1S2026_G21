@@ -1,35 +1,43 @@
 ---
-title: Bitácora de ORGA (1S2026)
-description: Documentación y entregables del curso organizados por prácticas y proyectos.
+title: Organización Computacional — 1S2026
+description: Documentación final del curso de Organización Computacional. Prácticas y proyecto del Grupo 21, Semestre 1 de 2026.
 hero:
-  tagline: Documentación y entregables del curso organizados por prácticas y proyectos.
+  tagline: Documentación final de las prácticas y del proyecto del Grupo 21.
   image:
     file: ../../assets/logo.webp
   actions:
     - text: Prácticas
       link: practicas/
       icon: right-arrow
-    - text: Proyectos
-      link: proyectos/
+    - text: Proyecto
+      link: proyectos/casa-inteligente/
       icon: right-arrow
 ---
 
 import { Card, CardGrid } from '@astrojs/starlight/components';
 
-## Cómo leer este sitio
+## Para qué sirve este sitio
 
-- Este sitio presenta entregables finales del curso, organizados por prácticas y proyectos.
-- Cada sección concentra la documentación técnica y los resultados principales de cada entrega.
-- La navegación está pensada para revisión rápida del contenido que sí forma parte de las entregas.
-- Para visualizar el sitio localmente: `pnpm dev`.
+El curso terminó, y esto queda como **referencia para quien lo lleve después**. No es solo el registro de lo que entregamos: cada página explica cómo llegamos al resultado, qué decisiones tomamos y en qué nos equivocamos antes de que funcionara.
 
-## Módulos del curso
+Si estás por hacer estas prácticas, el material está pensado para que puedas seguir el razonamiento completo —de la tabla de verdad a la ecuación simplificada, de la simulación al protoboard— en vez de solo ver el circuito terminado. Las secciones de pruebas y conclusiones son las que más ahorran tiempo: ahí están los errores que ya cometimos.
 
 <CardGrid stagger>
 	<Card title="Prácticas" icon="pencil">
-		Guías, desarrollo y resultados de cada práctica del curso. [Ir a prácticas](/practicas/).
+		Tres entregas de complejidad creciente: lógica combinacional, una ALU de 4 bits y un sistema secuencial con control de acceso. [Ir a prácticas](practicas/).
 	</Card>
-	<Card title="Proyectos" icon="setting">
-		Planificación, implementación e integración de los proyectos principales. [Ir a proyectos](/proyectos/).
+	<Card title="Proyecto" icon="setting">
+		Maqueta domótica con Arduino, escenas persistentes en EEPROM y control remoto por Bluetooth. [Ir al proyecto](proyectos/casa-inteligente/).
 	</Card>
 </CardGrid>
+
+## Grupo 21
+
+| Carné | Integrante |
+| --- | --- |
+| 202406918 | Claudia Maribel Tigüilá Tecum |
+| 202403929 | Emiliana Elizabeth Pú Lara |
+| 202300476 | Alex Ricardo Castañeda Rodríguez |
+| 201904522 | Byron Manuel Hernández López |
+
+Universidad de San Carlos de Guatemala — Facultad de Ingeniería, Escuela de Ciencias y Sistemas.
