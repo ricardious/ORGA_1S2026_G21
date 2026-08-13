@@ -1,6 +1,10 @@
 /* ──────────────────────────────────────────────
-   Dark-mode: invert SVG diagrams so black-on-white
-   schematics become white-on-dark automatically.
+   Modo oscuro: los esquemas SVG se dibujan con
+   trazo oscuro y sin fondo propio, para que se
+   vean sobre el fondo de la página. Al invertir
+   se aclaran los trazos, y el giro de matiz
+   devuelve los colores originales (los LED rojos
+   siguen rojos en vez de volverse cian).
    ────────────────────────────────────────────── */
 :root[data-theme="dark"] img[src$=".svg"] {
   filter: invert(1) hue-rotate(180deg);
