@@ -70,7 +70,18 @@ const { signals, markers = [], spans = [], caption } = Astro.props;
 const SLOT = 46; // ancho de una ranura de tiempo
 const AMP = 28; // altura del trazo entre nivel bajo y alto
 const GAP = 30; // separación entre señales
-const LABEL_W = 92; // columna de nombres
+/**
+ * Columna de nombres.
+ *
+ * El nombre va alineado a la derecha contra el borde del trazo, así que uno más
+ * ancho que la columna se sale del viewBox y aparece cortado. La columna crece
+ * con el nombre más largo: 14 px de monoespaciada ocupan unos 8,4 px por
+ * carácter.
+ */
+const LABEL_W = Math.max(
+  92,
+  Math.round(signals.reduce((max, s) => Math.max(max, s.name.length), 0) * 8.4) + 16,
+);
 const PAD_R = 18;
 const SLEW = 5; // ancho de la rampa en cada transición
 

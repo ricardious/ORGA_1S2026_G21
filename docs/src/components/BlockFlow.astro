@@ -43,8 +43,18 @@ for (const index of [feedback?.from, feedback?.to, aside?.at]) {
   }
 }
 
-const GAP = 58;
 const PAD = 14;
+
+/**
+ * Separación entre cajas.
+ *
+ * El rótulo de la flecha va centrado en este hueco, y las cajas se dibujan
+ * después, así que un rótulo más ancho que el hueco quedaba tapado por la caja
+ * siguiente. El hueco crece con el rótulo más largo: 12,5 px de monoespaciada
+ * ocupan unos 7,5 px por carácter.
+ */
+const longestLink = links.reduce((max, label) => Math.max(max, label.length), 0);
+const GAP = Math.max(58, Math.round(longestLink * 7.5) + 18);
 
 // Ancho común para todas las cajas: el texto más largo manda, de modo que la
 // cadena queda regular aunque un bloque se llame mucho más que otro.
