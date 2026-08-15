@@ -7,6 +7,7 @@ sidebar:
 
 import BlockFlow from '../../../components/BlockFlow.astro';
 import KMap from '../../../components/KMap.astro';
+import SevenSegmentGlyph from '../../../components/SevenSegmentGlyph.astro';
 
 Los mapas de Karnaugh simplifican una ecuación y las compuertas la construyen. Pero antes hay un paso sin atajo: decidir **qué señales entran, cuáles salen y qué debe valer cada combinación**. Ese paso no se simplifica ni se automatiza, y es donde se pierde más tiempo, porque un error aquí no se nota hasta que el circuito ya está armado.
 
@@ -35,10 +36,18 @@ Antes de escribir una sola fila hay que contestar tres preguntas por cada señal
 2. **¿Cuántos bits ocupa?** Una señal de control suele ser de 1 bit; un operando, de 4 u 8.
 3. **¿Qué nivel significa activo?** Un `1` puede significar «encendido» o «apagado». Hay que decidirlo y anotarlo.
 
+Conviene verlo sobre un caso concreto, que además es el que se resuelve al final de la página.
+
+Un display de 7 segmentos es exactamente eso: siete barras que se encienden por separado. Cada una tiene su letra, y son siempre las mismas:
+
+<SevenSegmentGlyph activeSegments={['g']} glowId="glow-algebra-g" maxWidth={160} lowercaseLabels />
+
+La del centro es la **`g`**, encendida en el dibujo. Cuidado con una coincidencia incómoda: los segmentos se rotulan de la `a` a la `g`, y las entradas del bloque se van a llamar `A`, `B` y `C`. No tienen nada que ver entre sí. En todo el sitio las **entradas van en mayúscula** y los **segmentos en minúscula**. Para representar una cifra hay que decidir, barra por barra, si se enciende o no; aquí nos ocuparemos solo de esa. Con eso ya se pueden nombrar las señales del bloque que la gobierna:
+
 | Señal | Tipo | Ancho | Activo en | Significado |
 |---|---|:---:|:---:|---|
 | `A B C` | entrada | 3 bits | — | cifra a mostrar, de 0 a 7 |
-| `g` | salida | 1 bit | alto | enciende el segmento central |
+| `g` | salida | 1 bit | alto | enciende la barra del centro |
 | `/APAGAR` | entrada | 1 bit | bajo | apaga el display cuando vale `0` |
 
 Compara las dos últimas filas, porque ahí está la tercera pregunta. `g` es **activa en alto**: enciende el segmento cuando vale `1`, que es lo que cualquiera supondría. `/APAGAR` es **activa en bajo**: hace su trabajo cuando vale `0`, al revés de lo que sugiere el nombre. La barra delante está precisamente para avisarlo —en algunos textos se dibuja como una raya encima del nombre— y por eso se escribe siempre, incluso en un borrador.
