@@ -48,7 +48,9 @@ El diagnóstico es sencillo: si un contador simulado avanza de uno en uno y el r
 
 En la simulación la fuente entrega `5 V` exactos pase lo que pase. En el protoboard, cada vez que varias salidas conmutan a la vez, la corriente pedida sube de golpe y la tensión del riel baja durante unos nanosegundos. Si baja lo suficiente, las entradas de los integrados cercanos leen niveles que nadie ordenó.
 
-Por eso los capacitores de `100 nF` no aparecen en el esquema simulado y son imprescindibles en el montaje: no corrigen ningún error de lógica, sostienen la tensión mientras la fuente reacciona. En la simulación no hacen nada, y por eso es tan fácil olvidarlos. Ver [Alimentación y desacoplamiento TTL](../alimentacion-ttl/).
+Por eso los capacitores de desacoplo no aparecen en el esquema simulado: allí no harían nada. En el montaje no corrigen ningún error de lógica, sino que sostienen la tensión mientras la fuente reacciona.
+
+En las prácticas de este curso no se usó ninguno y los circuitos funcionaron, que es lo normal en un montaje pequeño. Conviene conocerlos igualmente, porque son lo primero que se prueba cuando un circuito correcto falla de forma intermitente. Ver [Alimentación y desacoplamiento TTL](../alimentacion-ttl/).
 
 ## Una entrada al aire no se comporta igual
 
@@ -83,7 +85,7 @@ Es exactamente el caso de la señal `AUTH_OK` de la Práctica 3, y está explica
 
 Cuando la simulación esté limpia, este es el repaso que evita la mayoría de las sorpresas:
 
-1. **Alimentación primero.** `VCC` y `GND` de cada integrado, y un capacitor de `100 nF` junto a cada uno.
+1. **Alimentación primero.** `VCC` y `GND` de cada integrado, y los `5 V` medidos en el extremo del riel más alejado de la fuente.
 2. **Entradas no usadas.** Todas a un nivel fijo, incluidas habilitaciones, `preset` y `clear`.
 3. **Resistencias que la simulación no exigió.** Las de cada segmento de display, las de base de los transistores, las de pull-up y pull-down.
 4. **Antirrebote.** En todo botón que llegue a un reloj o a un contador.
@@ -97,7 +99,7 @@ Y un método que ahorra mucho: montar por bloques y probar cada uno contra su pr
 ## Errores que cuestan tiempo
 
 - **Tomar el «funciona en Proteus» como validación final.** Solo valida la lógica.
-- **Copiar el esquema simulado tal cual.** Le faltan los capacitores de desacoplo y a veces las resistencias.
+- **Copiar el esquema simulado tal cual.** Suelen faltarle resistencias que el simulador no exigió.
 - **Montarlo todo y después probar.** Un fallo entre doscientos cables no tiene diagnóstico.
 - **Confiar en que la simulación avisa de las entradas al aire.** A veces avisa; el protoboard nunca lo hace.
 - **Descartar la simulación cuando el montaje falla.** Sigue siendo la referencia de qué debería pasar.

@@ -32,6 +32,12 @@ Cuando varias salidas cambian a la vez, el integrado pide un pulso breve de corr
 
 ## Un capacitor de 100 nF por integrado
 
+:::note[En este curso no se usó ninguno]
+Las tres prácticas se montaron **sin capacitores de desacoplo** y funcionaron. No es una contradicción: en un protoboard con pocos integrados, conmutando despacio y con la fuente al lado, la caída de tensión casi nunca llega a provocar un error visible.
+
+Esta sección está aquí porque es la práctica estándar fuera del aula, y porque es lo primero que conviene probar si algún día aparecen fallos intermitentes sin causa clara. Cuanto más grande sea el montaje, más rápido conmute y más lejos quede la fuente, menos perdona su ausencia.
+:::
+
 Se coloca un capacitor cerámico de **100 nF** entre `V_CC` y GND, físicamente cerca de los pines de alimentación de cada integrado.
 
 <Schematic
@@ -100,7 +106,7 @@ No se dimensiona la fuente usando solo el consumo promedio. También debe soport
 1. Con la fuente apagada, comprueba que no haya continuidad directa entre `V_CC` y GND.
 2. Puentea los rieles divididos.
 3. Enciende sin integrados y mide la tensión.
-4. Apaga y coloca los integrados con sus capacitores.
+4. Apaga y coloca los integrados, cada uno con su capacitor de desacoplo si decides usarlos.
 5. Enciende con límite de corriente, si la fuente lo permite.
 6. Mide `V_CC` junto al integrado más lejano.
 7. Añade cargas por bloques y vigila consumo y temperatura.
