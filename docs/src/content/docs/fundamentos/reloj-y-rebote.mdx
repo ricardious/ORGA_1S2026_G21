@@ -5,7 +5,6 @@ sidebar:
   order: 12
 ---
 
-import Schematic from '../../../components/Schematic.astro';
 import Waveform from '../../../components/Waveform.astro';
 
 Un circuito secuencial necesita saber **cuándo** debe guardar un dato o avanzar al estado siguiente. Esa orden la da el reloj. Puede venir de un oscilador, un temporizador, un Arduino o un pulsador, pero debe llegar como una señal limpia.
@@ -95,55 +94,6 @@ if (cambioDetectado && millis() - ultimoCambio >= 40) {
 La espera no debe bloquear todo el programa con un retraso largo si también hay que atender comunicaciones o actuadores. Comparar tiempos con `millis()` permite continuar con las demás tareas.
 
 Este método se utiliza en el botón de puerta del [proyecto de casa inteligente](../../proyectos/casa-inteligente/).
-
-## Antirrebote por hardware
-
-En este curso el rebote se resolvió siempre por software, así que este circuito no llegó a montarse. Se documenta porque es la alternativa obligada cuando el botón no llega a un microcontrolador sino directamente a lógica secuencial: ahí no hay programa donde poner la espera.
-
-Una solución sencilla combina:
-
-- resistencia pull-up o pull-down para definir el estado,
-- capacitor para suavizar los cambios rápidos,
-- entrada con histéresis, por ejemplo un disparador Schmitt, para recuperar un flanco limpio.
-
-<Schematic
-  src="fundamentos/antirrebote_rc.svg"
-  alt="Pulsador con resistencia de pull-down, filtro RC y un inversor Schmitt 74HC14 que reconstruye el flanco"
-  caption="El pull-down define el nivel, la red RC borra los rebotes y el Schmitt devuelve un flanco único y vertical. Los tres hacen falta: sin el Schmitt, la rampa lenta del capacitor puede provocar varias conmutaciones en la entrada siguiente."
-/>
-
-<Waveform
-  signals={[
-    { name: 'pulsador', wave: '0010101111' },
-    { name: 'tras el RC', wave: '001xxx1111' },
-    { name: '/CLK', wave: '1111110000', accent: true },
-  ]}
-  caption="La banda rayada es la rampa del capacitor: una tensión que sube despacio y no es ni 0 ni 1. El Schmitt decide una sola vez y entrega un flanco limpio, pero invertido. Si el flip-flop necesita flanco de subida, se pasa por un segundo inversor del mismo integrado."
-/>
-
-:::note[Por qué 74HC14 y no 74LS14]
-La resistencia de `10 kΩ` del filtro está en serie con la entrada. Una entrada `74LS` en bajo entrega hasta `0,4 mA`, que sobre `10 kΩ` produciría una caída de `4 V`: el nivel bajo nunca se alcanzaría. Un `74HC14` es CMOS y su entrada casi no consume corriente, así que la caída es despreciable. Es el mismo razonamiento de [Entradas con DIP switch](../entradas-dip-switch/), aplicado aquí a la resistencia del filtro.
-:::
-
-El capacitor y la resistencia forman una constante de tiempo:
-
-```text
-τ = R · C
-```
-
-### Ejemplo aproximado
-
-Con `R = 10 kΩ` y `C = 1 µF`:
-
-```text
-τ = 10 000 · 0,000001 = 0,01 s = 10 ms
-```
-
-La transición se suaviza durante varios milisegundos. El valor exacto debe adaptarse al circuito y al umbral de la entrada; una red RC sola puede producir una rampa lenta, por lo que es preferible acompañarla con una entrada Schmitt.
-
-:::caution[Pull-down para 74LS]
-El valor de `10 kΩ` del ejemplo RC no debe copiarse automáticamente como pull-down de una entrada `74LS`. Como se explica en [Entradas con DIP switch](../entradas-dip-switch/), una entrada TTL LS puede necesitar un pull-down cercano a `1 kΩ`. El filtro se calcula considerando esa carga o se coloca una etapa Schmitt entre el botón y el reloj.
-:::
 
 ## Qué fuente de reloj conviene
 
