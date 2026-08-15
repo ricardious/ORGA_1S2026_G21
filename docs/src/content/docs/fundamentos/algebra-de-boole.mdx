@@ -39,9 +39,13 @@ Antes de escribir una sola fila hay que contestar tres preguntas por cada señal
 |---|---|:---:|:---:|---|
 | `A B C` | entrada | 3 bits | — | cifra a mostrar, de 0 a 7 |
 | `g` | salida | 1 bit | alto | enciende el segmento central |
-| `/BI` | entrada | 1 bit | bajo | apaga todo el display |
+| `/APAGAR` | entrada | 1 bit | bajo | apaga el display cuando vale `0` |
 
-La tercera fila muestra la convención habitual: una barra o una barra inclinada delante del nombre avisa de que la señal es **activa en bajo**. Es la misma notación que usan las hojas de datos y que aparece en [Bloques combinacionales](../bloques-combinacionales/).
+Compara las dos últimas filas, porque ahí está la tercera pregunta. `g` es **activa en alto**: enciende el segmento cuando vale `1`, que es lo que cualquiera supondría. `/APAGAR` es **activa en bajo**: hace su trabajo cuando vale `0`, al revés de lo que sugiere el nombre. La barra delante está precisamente para avisarlo —en algunos textos se dibuja como una raya encima del nombre— y por eso se escribe siempre, incluso en un borrador.
+
+Parece un detalle menor y es de los que más tiempo cuestan. Si en la tabla anotas que apaga con `1` y el circuito la apaga con `0`, la tabla entera queda invertida respecto al montaje, y eso no se descubre hasta que nada funciona. Por eso la columna «activo en» se rellena **antes** de escribir la primera fila.
+
+No es un capricho de este ejemplo: muchas entradas de habilitación y de borrado funcionan así, y volverás a encontrarlas en [Bloques combinacionales](../bloques-combinacionales/).
 
 Con `n` entradas hay `2ⁿ` combinaciones, y la tabla debe tenerlas todas:
 
