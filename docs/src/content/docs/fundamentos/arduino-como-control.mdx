@@ -2,7 +2,7 @@
 title: El Arduino como unidad de control
 description: Qué puede y qué no puede entregar un pin del Arduino, cómo conectarlo con lógica 74LS sin niveles ambiguos, y por qué la tierra tiene que ser común.
 sidebar:
-  order: 14
+  order: 13
 ---
 
 import Schematic from '../../../components/Schematic.astro';
@@ -61,7 +61,23 @@ El servomotor es un caso intermedio: su **señal** de control sí sale de un pin
 
 ## Leer una salida 74LS desde el Arduino
 
-Aquí está el punto que no se ve venir. Una entrada del Arduino a `5 V` considera que hay un `1` a partir de `0,6 × 5 V = 3,0 V`. Una salida `74LS` en alto solo **garantiza** `2,7 V`:
+Cualquier unión entre dos familias distintas se comprueba con cuatro números de sus hojas de datos:
+
+- `V_OH(min)` — la peor tensión alta que **entrega** una salida.
+- `V_OL(max)` — la peor tensión baja que entrega.
+- `V_IH(min)` — la mínima que una entrada **acepta** como alto.
+- `V_IL(max)` — la máxima que acepta como bajo.
+
+Y con dos desigualdades:
+
+```text
+V_OH(min) del que manda  ≥  V_IH(min) del que recibe
+V_OL(max) del que manda  ≤  V_IL(max) del que recibe
+```
+
+Entre dos `74LS` la cuenta sale holgada: `2,7 V` contra `2,0 V` deja `0,7 V` de margen en alto, y `0,5 V` contra `0,8 V` deja `0,3 V` en bajo. Por eso encadenar integrados TTL entre sí no da problemas y nadie se acuerda de estos números.
+
+Aquí está el punto que no se ve venir: con el Arduino de por medio, la primera desigualdad se rompe. Una entrada del Arduino a `5 V` considera que hay un `1` a partir de `0,6 × 5 V = 3,0 V`, y una salida `74LS` en alto solo **garantiza** `2,7 V`:
 
 | | Nivel alto |
 |---|:---:|
@@ -86,7 +102,7 @@ En este sentido no hay problema. El Arduino entrega casi `5 V` en alto y prácti
 20 mA ÷ 0,4 mA = 50 entradas
 ```
 
-El margen es amplio; en un montaje del curso nunca es el límite. Lo que sí conviene es no dejar entradas `74LS` al aire esperando que el Arduino las gobierne más tarde: mientras no estén conectadas se comportan como un `1`, como se explica en [Alimentación TTL](../alimentacion-ttl/).
+El margen es amplio; en un montaje del curso nunca es el límite. Lo que sí conviene es no dejar entradas `74LS` al aire esperando que el Arduino las gobierne más tarde: mientras no estén conectadas se comportan como un `1`, como se explica en [Bloques combinacionales](../bloques-combinacionales/).
 
 Para leer un pulsador, el Arduino tiene una ventaja que la lógica TTL no tiene: una resistencia de pull-up interna que se activa por programa.
 
@@ -145,4 +161,4 @@ Usar esos pines como entradas o salidas digitales corrientes es posible, pero cu
 
 ## Dónde se aplica esto
 
-La [Práctica 3](../../practicas/practica-3/) reparte el trabajo entre el Arduino y la lógica `74LS`, y el [proyecto de casa inteligente](../../proyectos/casa-inteligente/) le añade actuadores reales. Para dimensionar el transistor y el diodo, ver [Etapas de potencia](../etapas-de-potencia/); para el antirrebote del botón, [Reloj, pulsadores y rebote](../reloj-y-rebote/); y para los límites eléctricos de la familia TTL, [Alimentación TTL](../alimentacion-ttl/).
+La [Práctica 3](../../practicas/practica-3/) reparte el trabajo entre el Arduino y la lógica `74LS`, y el [proyecto de casa inteligente](../../proyectos/casa-inteligente/) le añade actuadores reales. Para dimensionar el transistor y el diodo, ver [Etapas de potencia](../etapas-de-potencia/); para el antirrebote del botón, [Reloj, pulsadores y rebote](../reloj-y-rebote/); y para los límites eléctricos de la familia TTL, [Alimentar el montaje](../alimentacion-ttl/).

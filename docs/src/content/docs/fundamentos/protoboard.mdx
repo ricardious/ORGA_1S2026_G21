@@ -6,6 +6,7 @@ sidebar:
 ---
 
 import Breadboard from '../../../components/Breadboard.astro';
+import Schematic from '../../../components/Schematic.astro';
 
 Un protoboard permite montar un circuito **sin soldar nada**: los componentes se clavan en agujeros que ya están conectados entre sí por dentro. Todo se puede desarmar y reutilizar, que es justo lo que hace falta cuando un diseño va a cambiar diez veces.
 
@@ -65,6 +66,24 @@ Si el integrado se monta **dentro de una sola mitad**, cada par de pines enfrent
 El circuito no funciona y el integrado puede calentarse, porque en muchos casos eso une una salida con una entrada, o directamente alimentación con tierra.
 
 Lo mismo aplica al DIP switch de las [entradas](../entradas-dip-switch/): si no cruza el canal, los dos lados de cada interruptor quedan unidos y no conmuta nada.
+
+## De qué lado está el pin 1
+
+Cruzar el canal resuelve dónde va el integrado, pero no en qué sentido. Un chip montado del revés recibe alimentación por los pines equivocados y suele calentarse.
+
+La referencia es la **muesca** en un extremo del encapsulado, o un punto hundido junto a una esquina. Con la muesca a la izquierda y mirando el chip **desde arriba**, el pin 1 es el de abajo a la izquierda, y la numeración avanza por la fila inferior hasta el otro extremo y vuelve por la superior.
+
+<Schematic
+  src="fundamentos/pinout_74ls157.svg"
+  alt="Pinout del 74LS157 en DIP-16 visto desde arriba, con la muesca a la izquierda y el punto junto al pin 1"
+  caption="El encapsulado está tumbado: la muesca queda a la izquierda y el punto marca el pin 1. Desde ahí la numeración recorre la fila inferior y regresa por la superior."
+/>
+
+Hay una regla que se cumple casi siempre y ahorra media hora de dudas: **la tierra y `V_CC` quedan en esquinas opuestas**. En un DIP-14 son los pines 7 y 14; en un DIP-16, el 8 y el 16. Si un pinout que encontraste no cumple eso, comprueba que sea el del integrado que tienes en la mano.
+
+:::caution[Vista superior o vista inferior]
+Casi todos los diagramas se dibujan **vistos desde arriba**, pero un diseño de PCB visto desde el lado del cobre aparece reflejado. Lee el título del dibujo antes de copiarlo: si te equivocas de vista, el pin 1 pasa al extremo contrario y todo el cableado queda en espejo.
+:::
 
 ## Los rieles de alimentación
 

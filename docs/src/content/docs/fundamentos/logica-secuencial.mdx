@@ -2,7 +2,7 @@
 title: Lógica secuencial
 description: Diferencia entre lógica combinacional y secuencial, funcionamiento de latches, flip-flops, registros y contadores.
 sidebar:
-  order: 11
+  order: 10
 ---
 
 import Schematic from '../../../components/Schematic.astro';
@@ -196,6 +196,24 @@ El dato no puede cambiar exactamente al mismo tiempo que el reloj. Debe permanec
 En montajes lentos estos tiempos parecen insignificantes, pero un botón con rebote o señales con caminos de distinta longitud pueden violarlos.
 
 También existe un retardo entre el flanco y el cambio de `Q`, marcado arriba como `t_CO`. Por eso no se debe suponer que todos los bloques responden de manera instantánea: la salida de un flip-flop llega a la entrada del siguiente **después** del flanco que la produjo, y eso es justamente lo que permite encadenarlos.
+
+## El retardo tiene dos valores
+
+La hoja de datos no da un solo retardo de propagación, sino dos, porque una compuerta no tarda lo mismo en subir que en bajar:
+
+<Waveform
+  signals={[
+    { name: 'entrada', wave: '00111000' },
+    { name: 'salida', wave: '00011100', accent: true },
+  ]}
+  spans={[
+    { from: 2, to: 3, label: 't_PLH', at: 1 },
+    { from: 5, to: 6, label: 't_PHL', at: 1 },
+  ]}
+  caption="t_PLH es lo que tarda la salida en pasar de bajo a alto, y t_PHL lo contrario. El fabricante garantiza un máximo para cada uno; el peor de los dos manda al calcular hasta qué frecuencia se puede subir."
+/>
+
+Junto a ellos aparecen el **ancho mínimo de pulso** y la **frecuencia máxima**. Si el reloj exige un pulso alto de al menos `20 ns`, un pico de `5 ns` no cuenta como pulso válido —pero tampoco hay garantía de que se ignore—. El diseño correcto no genera esos picos, en vez de confiar en que no molesten.
 
 ## Errores que cuestan tiempo
 

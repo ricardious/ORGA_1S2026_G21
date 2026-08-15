@@ -2,7 +2,7 @@
 title: Bloques combinacionales
 description: Cómo funcionan decodificadores, multiplexores, sumadores, comparadores y decodificadores BCD de la familia 74LS.
 sidebar:
-  order: 10
+  order: 9
 ---
 
 import Schematic from '../../../components/Schematic.astro';
@@ -20,6 +20,26 @@ Una compuerta resuelve una operación pequeña. Cuando el circuito necesita sele
 | Sumar dos palabras de 4 bits | Sumador completo | `74LS283` |
 | Saber si `A>B`, `A=B` o `A<B` | Comparador | `74LS85` |
 | Llevar una cifra BCD al display | BCD a 7 segmentos | `74LS48` |
+
+## Cómo se lee la tabla de un fabricante
+
+Cada uno de estos integrados llega con una tabla que dice qué salidas produce para cada combinación de entradas. Los símbolos son siempre los mismos:
+
+| Símbolo | Significado |
+|:---:|---|
+| `H` | Nivel alto |
+| `L` | Nivel bajo |
+| `X` | No importa |
+| `↑` | Flanco de subida |
+| `↓` | Flanco de bajada |
+| `Q₀` | El estado que ya tenía |
+| `Z` | Alta impedancia |
+
+Una barra sobre el nombre, una barra inclinada delante —`/G`, `/CLR`— o un círculo en el símbolo avisan de que la señal es **activa en bajo**. «Activa» describe cuándo hace su trabajo, no qué valor parece más natural: si `/ENABLE = 0`, el bloque está habilitado, y dejarlo fijo en `1` lo mantiene apagado por muy bien que estén las demás entradas.
+
+:::caution[El nombre completo importa]
+`74LS48` y `74HC48` hacen la misma función y no son intercambiables: cambian los niveles de entrada y la corriente que pueden entregar. Antes de comprar o sustituir, se compara el código impreso entero, incluido el sufijo de familia y el encapsulado.
+:::
 
 ## Decodificador `74LS138`
 
@@ -152,6 +172,26 @@ Las entradas de prueba y borrado (`LT`, `RBI` y `BI/RBO`, según el fabricante) 
 :::caution[BCD solo llega hasta 9]
 Las entradas `1010…1111` no son cifras BCD válidas. El símbolo que aparezca en el display para esos códigos no debe utilizarse como resultado decimal garantizado.
 :::
+
+## No todas las salidas son iguales
+
+Antes de unir dos bloques conviene saber qué clase de salida tiene el que manda:
+
+- **Totem-pole.** Conduce activamente hacia alto y hacia bajo. Es la habitual, y es la razón por la que **dos salidas nunca se conectan entre sí**: si una impone `1` y otra `0`, la corriente pasa directamente de una a otra.
+- **Colector abierto.** Solo sabe llevar la salida a `0`; para el `1` necesita una resistencia de pull-up externa. Sin ella el nivel alto no existe, y el circuito parece muerto a medias.
+- **Tri-state.** Además de `0` y `1` puede desconectarse en alta impedancia (`Z`), que es lo que permite que varios bloques compartan un mismo bus por turnos.
+
+## Entradas que sobran
+
+Las entradas que no se usan **no se dejan al aire**. En TTL una entrada desconectada se comporta como un `1` y además capta ruido, así que el bloque parece funcionar hasta que alguien acerca la mano.
+
+Se fijan en el nivel que no estorbe a la función:
+
+- una entrada de una AND se fija en `1`, para que no bloquee a las demás;
+- una entrada de una OR se fija en `0`, para que no active la salida por su cuenta;
+- las de reloj, borrado y habilitación van a su estado **inactivo**, que depende de si son activas en alto o en bajo.
+
+Ese último punto es el que se salta con más frecuencia. No se conectan a tierra o a `V_CC` «porque sí»: primero se mira la tabla. Las **salidas** que no se usan sí se dejan sin conectar, y nunca se amarran a alimentación.
 
 ## Cómo diseñar con bloques
 
