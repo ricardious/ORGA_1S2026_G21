@@ -86,7 +86,7 @@ En este sentido no hay problema. El Arduino entrega casi `5 V` en alto y prácti
 20 mA ÷ 0,4 mA = 50 entradas
 ```
 
-El margen es amplio; en un montaje del curso nunca es el límite. Lo que sí conviene es no dejar entradas `74LS` al aire esperando que el Arduino las gobierne más tarde: mientras no estén conectadas se comportan como un `1`, como se explica en [Alimentación y desacoplamiento TTL](../alimentacion-ttl/).
+El margen es amplio; en un montaje del curso nunca es el límite. Lo que sí conviene es no dejar entradas `74LS` al aire esperando que el Arduino las gobierne más tarde: mientras no estén conectadas se comportan como un `1`, como se explica en [Alimentación TTL](../alimentacion-ttl/).
 
 Para leer un pulsador, el Arduino tiene una ventaja que la lógica TTL no tiene: una resistencia de pull-up interna que se activa por programa.
 
@@ -145,4 +145,4 @@ Usar esos pines como entradas o salidas digitales corrientes es posible, pero cu
 
 ## Dónde se aplica esto
 
-La [Práctica 3](../../practicas/practica-3/) reparte el trabajo entre el Arduino y la lógica `74LS`, y el [proyecto de casa inteligente](../../proyectos/casa-inteligente/) le añade actuadores reales. Para dimensionar el transistor y el diodo, ver [Etapas de potencia](../etapas-de-potencia/); para el antirrebote del botón, [Reloj, pulsadores y rebote](../reloj-y-rebote/); y para los límites eléctricos de la familia TTL, [Alimentación y desacoplamiento TTL](../alimentacion-ttl/).
+La [Práctica 3](../../practicas/practica-3/) reparte el trabajo entre el Arduino y la lógica `74LS`, y el [proyecto de casa inteligente](../../proyectos/casa-inteligente/) le añade actuadores reales. Para dimensionar el transistor y el diodo, ver [Etapas de potencia](../etapas-de-potencia/); para el antirrebote del botón, [Reloj, pulsadores y rebote](../reloj-y-rebote/); y para los límites eléctricos de la familia TTL, [Alimentación TTL](../alimentacion-ttl/).

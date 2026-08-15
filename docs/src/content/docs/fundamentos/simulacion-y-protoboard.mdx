@@ -48,9 +48,7 @@ El diagnóstico es sencillo: si un contador simulado avanza de uno en uno y el r
 
 En la simulación la fuente entrega `5 V` exactos pase lo que pase. En el protoboard, cada vez que varias salidas conmutan a la vez, la corriente pedida sube de golpe y la tensión del riel baja durante unos nanosegundos. Si baja lo suficiente, las entradas de los integrados cercanos leen niveles que nadie ordenó.
 
-Por eso los capacitores de desacoplo no aparecen en el esquema simulado: allí no harían nada. En el montaje no corrigen ningún error de lógica, sino que sostienen la tensión mientras la fuente reacciona.
-
-En las prácticas de este curso no se usó ninguno y los circuitos funcionaron, que es lo normal en un montaje pequeño. Conviene conocerlos igualmente, porque son lo primero que se prueba cuando un circuito correcto falla de forma intermitente. Ver [Alimentación y desacoplamiento TTL](../alimentacion-ttl/).
+El simulador tampoco reproduce la resistencia del recorrido. En el protoboard, la alimentación atraviesa cables, contactos y rieles que van sumando caída, y esa caída crece con la corriente: el extremo lejano del riel puede estar bastante por debajo de lo que marca la fuente. Por eso se mide `V_CC` junto al integrado más alejado y no solo en los bornes. Ver [Alimentación TTL](../alimentacion-ttl/).
 
 ## Una entrada al aire no se comporta igual
 
@@ -107,4 +105,4 @@ Y un método que ahorra mucho: montar por bloques y probar cada uno contra su pr
 
 ## Dónde se aplica esto
 
-La [Práctica 2](../../practicas/practica-2/) y la [Práctica 3](../../practicas/practica-3/) documentan sus dos etapas por separado, simulación y montaje, y las diferencias entre ambas están recogidas en sus secciones de retos y hallazgos. Los tres fallos físicos más habituales tienen página propia: [Alimentación y desacoplamiento TTL](../alimentacion-ttl/), [Reloj, pulsadores y rebote](../reloj-y-rebote/) y [El protoboard](../protoboard/).
+La [Práctica 2](../../practicas/practica-2/) y la [Práctica 3](../../practicas/practica-3/) documentan sus dos etapas por separado, simulación y montaje, y las diferencias entre ambas están recogidas en sus secciones de retos y hallazgos. Los tres fallos físicos más habituales tienen página propia: [Alimentación TTL](../alimentacion-ttl/), [Reloj, pulsadores y rebote](../reloj-y-rebote/) y [El protoboard](../protoboard/).
