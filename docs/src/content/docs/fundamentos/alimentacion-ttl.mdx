@@ -1,8 +1,8 @@
 ---
-title: Alimentación TTL
-description: Cómo alimentar varios integrados 74LS de forma estable, repartir la corriente sin que caigan los rieles y evitar entradas indefinidas.
+title: Alimentar el montaje
+description: Con qué tensión trabaja la familia 74LS, por qué los 5 V no llegan iguales a toda la placa y cómo estimar la corriente antes de encender.
 sidebar:
-  order: 3
+  order: 2
 ---
 
 Un circuito puede tener ecuaciones correctas y aun así fallar si la alimentación cae o se llena de ruido. En simulación `V_CC` suele ser perfecto; en una protoboard la corriente atraviesa cables, contactos y rieles que tienen resistencia e inductancia.
@@ -16,7 +16,16 @@ La familia `74LS` está diseñada para trabajar alrededor de **5 V**. Como regla
 - comparte GND con Arduino, generadores y módulos externos,
 - consulta la hoja de datos del integrado concreto antes de aplicar otra tensión.
 
-En muchos DIP-14 de compuertas, `V_CC` está en el pin 14 y GND en el 7, pero **no es una regla universal para todos los integrados**. Por ejemplo, encapsulados con más pines distribuyen la alimentación de otra manera.
+En muchos DIP-14 de compuertas, `V_CC` está en el pin 14 y GND en el 7, pero **no es una regla universal para todos los integrados**. Por ejemplo, encapsulados con más pines distribuyen la alimentación de otra manera. Dónde buscar la muesca y cómo se numeran los pines está en [El protoboard](../protoboard/).
+
+### Recomendado no es lo mismo que máximo
+
+Las hojas de datos traen dos tablas que se confunden con facilidad:
+
+- **Condiciones recomendadas de operación:** el intervalo en el que el fabricante garantiza que el integrado se comporta como dice la tabla de verdad.
+- **Máximos absolutos:** los límites que no hay que alcanzar nunca, ni un instante, porque a partir de ahí se habla de daño.
+
+Que el máximo absoluto diga `7 V` no significa que alimentar a 6 V sea buena idea: significa que a 7 V el chip se rompe. Un `74LS` se diseña alrededor de sus **5 V recomendados**, y lo mismo vale para las corrientes: la de cortocircuito de una salida nunca es una corriente de trabajo.
 
 ## Por qué aparece ruido al conmutar
 
@@ -43,16 +52,6 @@ V_caída = 0,3 A · 0,5 Ω = 0,15 V
 ```
 
 El problema puede ser mayor durante el arranque de un motor. Por eso se alimenta la etapa de potencia con rutas apropiadas y no se hace circular su corriente por el mismo cable fino que alimenta la lógica.
-
-## Entradas no utilizadas
-
-Las entradas de compuertas que sobren deben quedar en un nivel definido compatible con la función:
-
-- una entrada AND puede fijarse en `1` para no bloquear las demás;
-- una entrada OR puede fijarse en `0` para no activar la salida;
-- entradas de reloj, reset y habilitación se fijan según su estado inactivo.
-
-No se conectan a tierra o a `V_CC` “porque sí”: primero se revisa si la señal es activa en alto o en bajo. Las **salidas** no utilizadas se dejan sin conectar; nunca se amarran directamente a alimentación.
 
 ## Presupuesto de corriente
 
@@ -85,7 +84,6 @@ Apaga la fuente. Revisa orientación, pinout, salidas conectadas entre sí y pos
 ## Errores que cuestan tiempo
 
 - **Suponer que todo DIP-14 usa pines 14 y 7.** Hay que verificarlo.
-- **Dejar entradas de control flotando.** El bloque se habilita o reinicia sin aviso.
 - **Alimentar motor y lógica por el mismo camino estrecho.** El reloj y los contadores se vuelven inestables.
 - **Medir únicamente en la salida de la fuente.** El voltaje puede caer al final del riel.
 
