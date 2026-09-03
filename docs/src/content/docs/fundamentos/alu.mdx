@@ -1,0 +1,153 @@
+---
+title: La ALU, varias operaciones y un solo resultado
+description: "Cómo se organiza una unidad aritmético-lógica discreta: los bloques calculan todos a la vez, el selector decide cuál llega a la salida y las banderas dicen lo que el resultado no dice."
+sidebar:
+  order: 8
+---
+
+import BlockFlow from '../../../components/BlockFlow.astro';
+import BitTable from '../../../components/BitTable.astro';
+
+Una **ALU** —unidad aritmético-lógica— es el bloque que dentro de un procesador hace las cuentas. Recibe dos operandos, un código que indica qué operación aplicar, y entrega un resultado.
+
+Construir una con lógica discreta reúne casi todo lo anterior: la [aritmética binaria](../aritmetica-binaria/) define qué debe calcular cada bloque y los [bloques combinacionales](../bloques-combinacionales/) lo implementan. Lo que no aparece en ninguna de las dos es la **organización**: hasta aquí cada circuito resolvía una función, y una ALU resuelve ocho a la vez y tiene que decidir cuál se ve.
+
+## Todos los bloques calculan siempre
+
+Aquí falla la intuición de quien viene de programar. En código, un `switch` ejecuta una rama y las demás sencillamente no ocurren. En hardware no hay ramas: cada bloque está cableado a `A` y `B` de forma permanente y **todos producen su resultado todo el tiempo**. El sumador suma aunque la operación elegida sea AND.
+
+<BlockFlow
+  steps={[
+    { title: 'A y B', sub: '4 bits' },
+    { title: 'los bloques', sub: 'calculan a la vez' },
+    { title: 'salida', sub: 'un resultado', accent: true },
+  ]}
+  links={['a todos por igual', 'varios resultados']}
+  aside={{ at: 2, title: 'selector', sub: 'deja pasar uno' }}
+  caption="Los operandos no se reparten entre bloques: se conectan a todos. Lo que se reparte es el permiso de llegar a la salida."
+/>
+
+Elegir una operación no es *no calcular* las otras: es **no dejarlas pasar**. Eso tiene un precio y una ventaja.
+
+El precio es en integrados. El circuito gasta chips en operaciones que en ese instante no le sirven a nadie; en la [Práctica 2](../../practicas/practica-2/) el multiplicador fue de los bloques más caros en integrados y solo es visible en uno de los ocho códigos.
+
+La ventaja es que **no hay que esperar**. El resultado ya está listo en cuanto las entradas se estabilizan. Cambiar el selector no dispara ningún cálculo, solo abre una puerta.
+
+## Seleccionar se hace a la salida
+
+Hay dos formas de quedarse con un resultado, y conviene decidir cuál se usa antes de cablear:
+
+- **Multiplexor a la salida.** Todos los resultados llegan a un [multiplexor](../bloques-combinacionales/#multiplexor-74ls157) y el selector escoge cuál pasa. Los demás siguen ahí, simplemente no se leen.
+- **Habilitación por bloque.** Un [decodificador](../bloques-combinacionales/#decodificador-74ls138) enciende una sola línea, y esa línea habilita el bloque correspondiente. Es lo que hizo la Práctica 2 con un `74LS138` y un `74LS04`.
+
+:::caution[Lo que no se puede hacer]
+Unir las salidas de dos bloques al mismo cable con la idea de que «solo uno estará activo». Una salida totem-pole impone su nivel siempre, así que dos bloques peleando por el mismo cable producen un cortocircuito, no una selección. Para poder compartir un cable hacen falta salidas preparadas para ello: ver [No todas las salidas son iguales](../bloques-combinacionales/#no-todas-las-salidas-son-iguales).
+:::
+
+## El código de operación
+
+Con `n` bits de selector caben `2ⁿ` operaciones. Tres bits dieron exactamente las ocho de la Práctica 2:
+
+| C | B | A | Operación |
+|:---:|:---:|:---:|---|
+| 0 | 0 | 0 | Suma |
+| 0 | 0 | 1 | Resta |
+| 0 | 1 | 0 | Multiplicación |
+| 0 | 1 | 1 | Potencia |
+| 1 | 0 | 0 | AND |
+| 1 | 0 | 1 | OR |
+| 1 | 1 | 0 | NAND |
+| 1 | 1 | 1 | XNOR |
+
+Dos cosas que esta tabla no dice y cuestan tiempo:
+
+- **Las salidas del `74LS138` son activas en bajo.** La línea elegida vale `0` y las otras siete valen `1`. Si el bloque siguiente espera una habilitación en alto, hay que invertirla.
+- **Los códigos sobrantes también seleccionan algo.** Si tuvieras cinco operaciones y tres bits de selector, quedan tres combinaciones que alguien va a marcar tarde o temprano. Decide qué hacen —repetir una operación, apagar la salida— en lugar de dejarlo al azar del cableado.
+
+## El mismo bus no siempre significa lo mismo
+
+En la suma, `B` es un operando. En el bloque de potencia de la Práctica 2, `B` **no** es un operando: es el exponente, y el bloque calcula `A²` con `B = 0010` y `A³` con `B = 0011`.
+
+No es una rareza de esa práctica, es cómo funcionan las ALU reales: el mismo grupo de cables significa una cosa u otra según la operación activa. Vale la pena escribirlo en la tabla de operaciones desde el principio, porque es de los detalles que nadie recuerda dos semanas después.
+
+## Un bloque en varios modos cuesta menos que dos bloques
+
+Suma y resta no son dos circuitos. Son el mismo sumador con una señal de modo: una XOR por bit invierte `B` cuando `RESTAR = 1`, y esa misma señal entra como acarreo inicial para completar el [complemento a dos](../aritmetica-binaria/#la-resta-se-convierte-en-suma).
+
+| `RESTAR` | `B` que entra al sumador | `C_in` | Resultado |
+|:---:|---|:---:|---|
+| 0 | `B` sin tocar | 0 | `A + B` |
+| 1 | `B` invertido bit a bit | 1 | `A − B` |
+
+El ahorro es de un bloque entero de cuatro bits a cambio de cuatro XOR. Antes de añadir un módulo nuevo conviene preguntarse siempre lo mismo: **¿hay uno que ya haga esto con una entrada más?**
+
+## El resultado no cabe siempre en los mismos bits
+
+Cada operación produce un ancho distinto a partir de los mismos operandos de 4 bits:
+
+| Operación | Ancho del resultado | Peor caso |
+|---|:---:|---|
+| `A + B` | 5 bits | `15 + 15 = 30` |
+| `A − B` | 4 bits + signo | `0 − 15 = −15` |
+| `A × B` | 8 bits | `15 × 15 = 225` |
+| Lógicas | 4 bits | no crecen nunca |
+
+El bus de resultado se dimensiona por **la operación más ancha**, y las que no llegan rellenan con ceros a la izquierda:
+
+<BitTable
+  rows={[
+    { label: 'A + B', bits: '00011110', note: '30, en un bus de 8 bits' },
+    { label: 'A × B', bits: '11100001', note: '225, el mismo bus lleno', kind: 'result' },
+  ]}
+  caption="El bus no cambia de tamaño con la operación. Lo que cambia es cuántos de sus bits son significativos."
+/>
+
+Dimensionar el bus por la primera operación que se prueba es un error caro: se descubre a mitad del montaje, cuando ya hay cables puestos.
+
+## Las banderas son la otra salida
+
+El resultado dice **cuánto**. Las banderas dicen si ese cuánto es de fiar, y son una salida aparte:
+
+- **Acarreo** (`C_out`): la suma no cupo en los bits disponibles.
+- **Signo**: el bit más significativo del resultado, interpretado en complemento a dos.
+- **Cero**: todos los bits del resultado valen `0`; se obtiene con una NOR de todos ellos.
+
+Un acarreo no es lo mismo que un desbordamiento, y confundirlos da resultados «correctos» que están mal; la diferencia está en [Aritmética binaria](../aritmetica-binaria/#acarreo-no-es-lo-mismo-que-desbordamiento).
+
+## Las operaciones lógicas no producen números
+
+AND, OR, NAND y XNOR trabajan **bit a bit**: el bit 0 del resultado depende solo de los bits 0 de `A` y `B`. No hay acarreo, no hay propagación y no hay orden entre las posiciones, así que son cuatro compuertas en paralelo y el resultado aparece de inmediato.
+
+Con `A = 0011` y `B = 0101`:
+
+| Operación | Resultado |
+|---|---|
+| `A AND B` | `0001` |
+| `A OR B` | `0111` |
+| `A NAND B` | `1110` |
+| `A XNOR B` | `1001` |
+
+Ese `1110` no es «catorce»: es un patrón de bits. Mandarlo a un display decimal no significa nada, y por eso la Práctica 2 tiene **dos rutas de salida distintas** —displays para lo aritmético, LEDs para lo lógico— en lugar de una sola. Un LED por bit es además la forma más rápida de validar el bloque, porque se lee el patrón directamente sin pasar por la conversión decimal.
+
+## No todo tiene que pasar por el selector
+
+La unidad comparativa de la Práctica 2 no ocupa ninguno de los ocho códigos: compara `A` y `B` con un `74LS85` y muestra el mayor y el menor de forma permanente, porque su respuesta es válida sea cual sea la operación activa.
+
+Es una decisión de diseño que ahorra códigos y cableado: si un resultado no depende de la operación elegida, no tiene por qué competir por el selector.
+
+## Errores que cuestan tiempo
+
+- **Unir dos salidas al mismo cable** para «elegir» entre ellas. Eso no selecciona, cortocircuita.
+- **Olvidar que el decodificador es activo en bajo** y habilitar los ocho bloques menos el correcto.
+- **Dimensionar el bus con la primera operación probada**, normalmente la suma, y descubrir el problema al llegar al producto.
+- **Enviar un resultado lógico a un display decimal.** El patrón no es una cifra.
+- **Suponer que un bloque no seleccionado está apagado.** Sigue alimentado, sigue calculando y sigue consumiendo corriente; cuenta para el [presupuesto de alimentación](../alimentacion-ttl/).
+- **Cablear antes de cerrar la tabla de operaciones.** Cambiar un código a mitad del montaje obliga a rehacer las habilitaciones de todos los bloques.
+
+## Dónde se aplica esto
+
+La [Práctica 2](../../practicas/practica-2/) es una ALU completa: ocho operaciones, selector de 3 bits, dos rutas de salida y un comparador permanente.
+
+El patrón reaparece en la [Práctica 3](../../practicas/practica-3/) en pequeño: dos contadores calculan a la vez —uno ascendente y otro descendente— y un `74LS157` decide cuál se muestra según la fase activa. Son dos fuentes en vez de ocho, pero la idea es idéntica: calcular todo y seleccionar a la salida.
+
+Para los integrados que hacen cada operación, ver [Bloques combinacionales](../bloques-combinacionales/). Para lo que ocurre cuando el resultado debe recordarse en vez de calcularse de nuevo, ver [Lógica secuencial](../logica-secuencial/).
