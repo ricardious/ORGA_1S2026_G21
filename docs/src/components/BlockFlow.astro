@@ -57,9 +57,12 @@ const longestLink = links.reduce((max, label) => Math.max(max, label.length), 0)
 const GAP = Math.max(58, Math.round(longestLink * 7.5) + 18);
 
 // Ancho común para todas las cajas: el texto más largo manda, de modo que la
-// cadena queda regular aunque un bloque se llame mucho más que otro.
+// cadena queda regular aunque un bloque se llame mucho más que otro. La entrada
+// lateral usa ese mismo ancho, así que su texto también cuenta: si se deja
+// fuera, un rótulo largo en el `aside` se sale de su propia caja.
 const longest = Math.max(
   ...steps.flatMap((step) => [step.title.length, (step.sub ?? "").length * 0.85]),
+  ...(aside ? [aside.title.length, (aside.sub ?? "").length * 0.85] : []),
 );
 const BOX_W = Math.max(140, Math.round(longest * 8.4) + 26);
 const hasSub = steps.some((step) => step.sub);
