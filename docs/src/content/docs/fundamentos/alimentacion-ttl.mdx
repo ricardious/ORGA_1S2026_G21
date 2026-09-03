@@ -1,0 +1,92 @@
+---
+title: Alimentar el montaje
+description: Con qué tensión trabaja la familia 74LS, por qué los 5 V no llegan iguales a toda la placa y cómo estimar la corriente antes de encender.
+sidebar:
+  order: 14
+---
+
+Un circuito puede tener ecuaciones correctas y aun así fallar si la alimentación cae o se llena de ruido. En simulación `V_CC` suele ser perfecto; en una protoboard la corriente atraviesa cables, contactos y rieles que tienen resistencia e inductancia.
+
+## Alimentación de la familia 74LS
+
+La familia `74LS` está diseñada para trabajar alrededor de **5 V**. Como regla de montaje:
+
+- usa una fuente regulada de 5 V,
+- conecta todos los `V_CC` y todos los `GND`,
+- comparte GND con Arduino, generadores y módulos externos,
+- consulta la hoja de datos del integrado concreto antes de aplicar otra tensión.
+
+En muchos DIP-14 de compuertas, `V_CC` está en el pin 14 y GND en el 7, pero **no es una regla universal para todos los integrados**. Por ejemplo, encapsulados con más pines distribuyen la alimentación de otra manera. Dónde buscar la muesca y cómo se numeran los pines está en [El protoboard](../protoboard/).
+
+### Recomendado no es lo mismo que máximo
+
+Las hojas de datos traen dos tablas que se confunden con facilidad:
+
+- **Condiciones recomendadas de operación:** el intervalo en el que el fabricante garantiza que el integrado se comporta como dice la tabla de verdad.
+- **Máximos absolutos:** los límites que no hay que alcanzar nunca, ni un instante, porque a partir de ahí se habla de daño.
+
+Que el máximo absoluto diga `7 V` no significa que alimentar a 6 V sea buena idea: significa que a 7 V el chip se rompe. Un `74LS` se diseña alrededor de sus **5 V recomendados**, y lo mismo vale para las corrientes: la de cortocircuito de una salida nunca es una corriente de trabajo.
+
+## Por qué aparece ruido al conmutar
+
+Cuando varias salidas cambian a la vez, el integrado pide un pulso breve de corriente. Los cables y rieles no pueden entregarlo instantáneamente sin que la tensión local se mueva. El resultado puede ser:
+
+- un falso pulso de reloj,
+- un contador que salta estados,
+- un display que parpadea,
+- un reinicio inesperado,
+- una falla que aparece solo cuando se enciende el motor.
+
+## Caída de tensión en los rieles
+
+Todo cable tiene alguna resistencia. La caída se estima con la ley de Ohm:
+
+```text
+V_caída = I · R
+```
+
+Si el recorrido de alimentación tiene `0,5 Ω` entre cables y contactos, y una carga transitoria toma `300 mA`:
+
+```text
+V_caída = 0,3 A · 0,5 Ω = 0,15 V
+```
+
+El problema puede ser mayor durante el arranque de un motor. Por eso se alimenta la etapa de potencia con rutas apropiadas y no se hace circular su corriente por el mismo cable fino que alimenta la lógica.
+
+## Presupuesto de corriente
+
+La fuente debe alimentar:
+
+```text
+I_total ≈ I_integrados + I_LED + I_transistores + I_módulos
+```
+
+### Ejemplo estimado
+
+Si hay 8 segmentos encendidos a 8 mA, consumen cerca de `64 mA`. A eso se suma el consumo de los TTL, indicadores y demás módulos. Un motor o servo puede requerir picos mucho mayores y se calcula por separado con su hoja de datos o medición.
+
+No se dimensiona la fuente usando solo el consumo promedio. También debe soportar los picos sin que los 5 V caigan.
+
+## Secuencia recomendada de montaje
+
+1. Con la fuente apagada, comprueba que no haya continuidad directa entre `V_CC` y GND.
+2. Puentea los rieles divididos.
+3. Enciende sin integrados y mide la tensión.
+4. Apaga y coloca los integrados.
+5. Enciende con límite de corriente, si la fuente lo permite.
+6. Mide `V_CC` junto al integrado más lejano.
+7. Añade cargas por bloques y vigila consumo y temperatura.
+
+:::caution[Si un integrado se calienta]
+Apaga la fuente. Revisa orientación, pinout, salidas conectadas entre sí y posibles cortocircuitos. Un TTL no debería calentarse de forma notable en un montaje normal.
+:::
+
+## Errores que cuestan tiempo
+
+- **Suponer que todo DIP-14 usa pines 14 y 7.** Hay que verificarlo.
+- **Alimentar motor y lógica por el mismo camino estrecho.** El reloj y los contadores se vuelven inestables.
+- **Medir únicamente en la salida de la fuente.** El voltaje puede caer al final del riel.
+
+## Dónde se aplica esto
+
+La alimentación estable importa especialmente en las prácticas 2 y 3, donde funcionan muchos integrados a la vez. Para la distribución física de los rieles, ver [El protoboard](../protoboard/); para separar motores de la lógica, ver [Etapas de potencia](../etapas-de-potencia/); y para lo que la simulación no reproduce de todo esto, ver [Qué no dice la simulación](../simulacion-y-protoboard/).

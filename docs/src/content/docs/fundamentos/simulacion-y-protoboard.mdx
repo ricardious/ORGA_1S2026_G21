@@ -1,0 +1,108 @@
+---
+title: Qué no dice la simulación
+description: En qué se puede confiar de una simulación en Proteus, qué idealiza sin avisar y qué revisar al pasar el circuito al protoboard.
+sidebar:
+  order: 15
+---
+
+import Waveform from '../../../components/Waveform.astro';
+
+Las tres prácticas y el proyecto pasan por Proteus antes de tocar un cable. Es el orden correcto: corregir un error en la pantalla cuesta un minuto y corregirlo en el protoboard cuesta una tarde. Pero la simulación es muy buena en una cosa y completamente ciega en otra, y saber dónde está esa frontera evita la noche que empieza con «en Proteus sí funciona».
+
+## En qué sí se puede confiar
+
+Una simulación comprueba la **lógica**, y lo hace mejor que cualquier revisión a mano:
+
+- Verifica que la ecuación coincide con la tabla de verdad, combinación por combinación.
+- Delata un pin equivocado o una conexión que falta, porque el resultado sale mal de forma reproducible.
+- Permite observar señales internas que en el protoboard no tienen dónde pincharse.
+- Deja probar un integrado antes de comprarlo.
+
+Si el circuito falla en la simulación, está mal. Ese veredicto es fiable y conviene aprovecharlo hasta el final: **ningún montaje debería empezar antes de que la simulación esté limpia**.
+
+Lo que no es fiable es el veredicto contrario. Que funcione en Proteus no dice que vaya a funcionar en la mesa.
+
+## Lo que idealiza sin avisar
+
+| Aspecto | En la simulación | En el protoboard |
+|---|---|---|
+| Fuente | tensión constante, corriente ilimitada | cae al conmutar; tiene resistencia |
+| Interruptores y botones | un cambio limpio | rebotan durante milisegundos |
+| Entradas sin conectar | avisa, o asume un valor | se leen como `1` y captan ruido |
+| Niveles lógicos | `0` y `1` exactos | `2,7 V` puede no bastar como `1` |
+| Retardos de propagación | iguales en cada copia del chip | varían entre unidades y con la temperatura |
+| Corriente de entrada | a menudo despreciada | `0,4 mA` por cada entrada `74LS` en bajo |
+| Cargas inductivas | pico ausente o suavizado | pico real, capaz de destruir la etapa |
+| Cables y contactos | resistencia cero | contactos flojos y resistencia variable |
+| LED sin resistencia | enciende | se quema |
+
+Ninguna de esas diferencias es un defecto del programa: son simplificaciones necesarias para que la simulación sea rápida. El problema aparece cuando se leen como si fueran el circuito.
+
+## El rebote no existe en la simulación
+
+Un pulsador simulado hace exactamente un cambio. Uno real hace varios durante unos milisegundos, y un contador los cuenta todos. Es el motivo por el que el antirrebote parece innecesario hasta el momento exacto en que se monta.
+
+El diagnóstico es sencillo: si un contador simulado avanza de uno en uno y el real salta a tres, no hay que revisar la lógica —está bien— sino la entrada. El desarrollo completo está en [Reloj, pulsadores y rebote](../reloj-y-rebote/).
+
+## La alimentación nunca se hunde
+
+En la simulación la fuente entrega `5 V` exactos pase lo que pase. En el protoboard, cada vez que varias salidas conmutan a la vez, la corriente pedida sube de golpe y la tensión del riel baja durante unos nanosegundos. Si baja lo suficiente, las entradas de los integrados cercanos leen niveles que nadie ordenó.
+
+El simulador tampoco reproduce la resistencia del recorrido. En el protoboard, la alimentación atraviesa cables, contactos y rieles que van sumando caída, y esa caída crece con la corriente: el extremo lejano del riel puede estar bastante por debajo de lo que marca la fuente. Por eso se mide `V_CC` junto al integrado más alejado y no solo en los bornes. Ver [Alimentar el montaje](../alimentacion-ttl/).
+
+## Una entrada al aire no se comporta igual
+
+Al simular, una entrada sin conectar suele generar un aviso o tomar un valor definido. En un `74LS` real, una entrada al aire flota hacia el nivel alto y además actúa como antena: el circuito parece funcionar, y cambia de comportamiento cuando alguien acerca la mano.
+
+Es una de las pocas diferencias que se manifiestan como intermitencia pura, sin patrón. Toda entrada no usada —incluidas las de habilitación, borrado y preset— debe ir a un nivel fijo.
+
+## Los retardos no tienen dispersión
+
+En la simulación todas las copias de un integrado responden igual. En la realidad no, y esa diferencia crea pulsos que no están en ninguna tabla de verdad:
+
+<Waveform
+  signals={[
+    { name: 'A', wave: '00001111' },
+    { name: "A' ideal", wave: '11110000' },
+    { name: "A' real", wave: '11111000', accent: true },
+    { name: "A · A'", wave: '00001000' },
+  ]}
+  markers={[{ at: 4, label: 'A sube' }]}
+  caption="La última fila debería valer 0 siempre: una señal y su negada nunca son 1 a la vez. Pero el inversor tarda, y durante ese instante lo son. El pulso no está en la tabla de verdad y aun así existe."
+/>
+
+Un pulso así es invisible con un LED e inofensivo para una entrada de datos, que se lee solo en el flanco del reloj. Pero si esa señal alimenta un **reloj**, el contador lo cuenta como un evento más. Es el motivo por el que no conviene fabricar relojes con compuertas sueltas, y por el que un circuito puede funcionar en la simulación y contar de más en la mesa.
+
+## Los niveles también son ideales
+
+Un modelo de `74LS` en simulación entrega `0` y `1` perfectos. El integrado real garantiza `2,7 V` en alto, que es suficiente para otra entrada TTL pero queda por debajo de lo que exige una entrada del Arduino. En Proteus esa conexión funciona sin objeciones; en el protoboard es intermitente.
+
+Es exactamente el caso de la señal `AUTH_OK` de la Práctica 3, y está explicado con el esquema y la resistencia que lo resuelve en [El Arduino como unidad de control](../arduino-como-control/).
+
+## De la simulación al protoboard
+
+Cuando la simulación esté limpia, este es el repaso que evita la mayoría de las sorpresas:
+
+1. **Alimentación primero.** `VCC` y `GND` de cada integrado, y los `5 V` medidos en el extremo del riel más alejado de la fuente.
+2. **Entradas no usadas.** Todas a un nivel fijo, incluidas habilitaciones, `preset` y `clear`.
+3. **Resistencias que la simulación no exigió.** Las de cada segmento de display, las de base de los transistores, las de pull-up y pull-down.
+4. **Antirrebote.** En todo botón que llegue a un reloj o a un contador.
+5. **Tierra común.** Entre todas las fuentes del montaje, incluida la del Arduino y la del motor.
+6. **Niveles entre familias distintas.** Especialmente `74LS` hacia una entrada de microcontrolador.
+7. **Protección de cargas inductivas.** Diodo en paralelo con cualquier motor o relé.
+8. **Reloj lento al principio.** Para poder ver la secuencia estado por estado antes de acelerar.
+
+Y un método que ahorra mucho: montar por bloques y probar cada uno contra su propia simulación antes de unirlos. Un circuito completo que falla no dice dónde falla; un bloque que falla, sí.
+
+## Errores que cuestan tiempo
+
+- **Tomar el «funciona en Proteus» como validación final.** Solo valida la lógica.
+- **Copiar el esquema simulado tal cual.** Suelen faltarle resistencias que el simulador no exigió.
+- **Montarlo todo y después probar.** Un fallo entre doscientos cables no tiene diagnóstico.
+- **Confiar en que la simulación avisa de las entradas al aire.** A veces avisa; el protoboard nunca lo hace.
+- **Descartar la simulación cuando el montaje falla.** Sigue siendo la referencia de qué debería pasar.
+- **No volver a la simulación tras cambiar el circuito.** Los dos diseños se separan y dejan de ser comparables.
+
+## Dónde se aplica esto
+
+La [Práctica 2](../../practicas/practica-2/) y la [Práctica 3](../../practicas/practica-3/) documentan sus dos etapas por separado, simulación y montaje, y las diferencias entre ambas están recogidas en sus secciones de retos y hallazgos. Los tres fallos físicos más habituales tienen página propia: [Alimentar el montaje](../alimentacion-ttl/), [Reloj, pulsadores y rebote](../reloj-y-rebote/) y [El protoboard](../protoboard/).

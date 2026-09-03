@@ -1,0 +1,88 @@
+---
+/**
+ * Figura optimizada para las páginas de contenido.
+ *
+ * Resuelve la imagen contra `src/assets/media/` mediante `import.meta.glob`,
+ * de modo que las páginas referencian rutas cortas sin necesidad de importar
+ * cada archivo ni de conocer el `base` del sitio: Astro genera la URL final
+ * (con hash y prefijo correctos) y produce variantes optimizadas.
+ *
+ * Una ruta inexistente rompe el build con un mensaje explícito, en lugar de
+ * publicar una imagen rota.
+ */
+import { Image } from "astro:assets";
+
+interface Props {
+  /** Ruta relativa a `src/assets/media/`, p. ej. `practicas/practica-3/bloques/foo.png`. */
+  src: string;
+  alt: string;
+  /** Pie de figura opcional; si se omite solo se renderiza la imagen. */
+  caption?: string;
+  /** Ancho máximo de presentación (CSS). Por defecto ocupa el ancho disponible. */
+  maxWidth?: string;
+}
+
+const { src, alt, caption, maxWidth } = Astro.props;
+
+const media = import.meta.glob<{ default: ImageMetadata }>(
+  "/src/assets/media/**/*.{png,jpg,jpeg,webp,avif}",
+  { eager: true },
+);
+
+const key = `/src/assets/media/${src}`;
+const entry = media[key];
+
+if (!entry) {
+  throw new Error(
+    `<Figure />: no existe "src/assets/media/${src}".\n` +
+      `Rutas disponibles:\n  ${Object.keys(media)
+        .map((path) => path.replace("/src/assets/media/", ""))
+        .sort()
+        .join("\n  ")}`,
+  );
+}
+
+const image = entry.default;
+
+// Variantes responsivas: la columna de contenido de Starlight ronda los 720 px,
+// así que una foto de 1600 px se descarga entera sin necesidad. Solo se generan
+// anchos menores que el original — Astro no reescala hacia arriba.
+const widths = [
+  ...[480, 800, 1200].filter((width) => width < image.width),
+  image.width,
+];
+---
+
+<figure class="doc-figure" style={maxWidth ? `max-width:${maxWidth}` : undefined}>
+  <Image
+    src={image}
+    alt={alt}
+    widths={widths}
+    sizes={maxWidth
+      ? `(min-width: 50rem) ${maxWidth}, 94vw`
+      : "(min-width: 50rem) 45rem, 94vw"}
+    loading="lazy"
+    decoding="async"
+  />
+  {caption && <figcaption>{caption}</figcaption>}
+</figure>
+
+<style>
+  .doc-figure {
+    margin: 1.5rem auto;
+  }
+
+  .doc-figure :global(img) {
+    width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+  }
+
+  .doc-figure figcaption {
+    margin-top: 0.5rem;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-3);
+    text-align: center;
+    text-wrap: balance;
+  }
+</style>

@@ -5,6 +5,8 @@ interface Props {
   dp?: boolean;
   mirrored?: boolean;
   showLabels?: boolean;
+  /** Rotula los segmentos en minúscula, para no confundirlos con variables de entrada. */
+  lowercaseLabels?: boolean;
   glowId?: string;
   maxWidth?: number;
 }
@@ -15,6 +17,7 @@ const {
   dp = false,
   mirrored = false,
   showLabels = true,
+  lowercaseLabels = false,
   glowId = "glow-filter",
   maxWidth = 112,
 } = Astro.props as Props;
@@ -89,7 +92,7 @@ const segmentLabels = {
                 text-anchor="middle"
                 dominant-baseline="middle"
               >
-                {label.text}
+                {lowercaseLabels ? label.text.toLowerCase() : label.text}
               </text>
             ))}
             <text

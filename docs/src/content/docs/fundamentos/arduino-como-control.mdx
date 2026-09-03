@@ -1,0 +1,164 @@
+---
+title: El Arduino como unidad de control
+description: Qué puede y qué no puede entregar un pin del Arduino, cómo conectarlo con lógica 74LS sin niveles ambiguos, y por qué la tierra tiene que ser común.
+sidebar:
+  order: 12
+---
+
+import Schematic from '../../../components/Schematic.astro';
+import BlockFlow from '../../../components/BlockFlow.astro';
+import Waveform from '../../../components/Waveform.astro';
+
+En la [Práctica 3](../../practicas/practica-3/) el Arduino no sustituye a la lógica: los contadores, el comparador y el latch siguen siendo integrados `74LS`. El Arduino solo lee una habilitación, genera los pulsos de reloj y mide los tiempos de cada fase. Esa división es deliberada, y funciona siempre que la frontera entre las dos mitades esté bien resuelta eléctricamente.
+
+<BlockFlow
+  steps={[
+    { title: 'lógica 74LS', sub: 'AUTH_OK' },
+    { title: 'Arduino', sub: 'decide y temporiza', accent: true },
+    { title: 'etapa de potencia', sub: 'transistor' },
+    { title: 'carga', sub: 'motor, lámpara' },
+  ]}
+  links={['entrada', 'salida', 'corriente']}
+  aside={{ at: 2, title: 'fuente aparte', sub: 'GND común' }}
+  caption="Tres fronteras y tres problemas distintos: leer un nivel, entregar uno y entregar corriente. Solo la del medio la resuelve el pin por sí solo."
+/>
+
+## Lo que un pin puede dar
+
+Un pin digital del Arduino Uno no es una fuente de alimentación. Sus límites son estrechos y conviene tenerlos presentes:
+
+| Límite | Valor | Qué significa |
+|---|:---:|---|
+| Corriente recomendada por pin | `20 mA` | valor de diseño |
+| Máximo absoluto por pin | `40 mA` | por encima se daña el microcontrolador |
+| Total por los pines de VCC y GND | `200 mA` | suma de **todos** los pines a la vez |
+| Tensión de salida en alto | ≈ `5 V` | referida a la tierra del Arduino |
+
+El límite que más sorprende es el tercero, porque no aparece pin a pin. El [proyecto de casa inteligente](../../proyectos/casa-inteligente/) enciende cinco zonas de iluminación más tres LED de estado. Si cada uno fuera un LED a `15 mA`:
+
+```text
+8 × 15 mA = 120 mA
+```
+
+Aún caben en los `200 mA`, pero queda poco margen para el LCD y para cualquier salida que se añada después. En cuanto una de esas «zonas» deje de ser un LED indicador y pase a ser una lámpara, el cálculo se rompe y hace falta una etapa de potencia.
+
+## Un LED sí; un motor, no
+
+Un LED con su resistencia en serie consume del orden de `10` a `20 mA` y puede colgar directamente del pin. Un motor no, por dos motivos independientes:
+
+1. **Corriente.** Un motor pequeño arranca pidiendo bastante más de `40 mA`.
+2. **Tensión inversa.** Al cortar la corriente, la bobina genera un pico de polaridad contraria que puede destruir el pin aunque la corriente media fuera baja.
+
+La solución es la misma que en la práctica: el pin manda, el transistor entrega.
+
+<Schematic
+  src="fundamentos/etapa_potencia_motor.svg"
+  alt="Salida digital controlando un motor mediante un transistor NPN con resistencia de base y diodo de protección"
+  caption="El pin solo tiene que entregar la corriente de base, del orden de un miliamperio. La del motor la entrega la fuente, y el diodo se ocupa del pico inverso. El razonamiento completo está en Etapas de potencia."
+/>
+
+El servomotor es un caso intermedio: su **señal** de control sí sale de un pin, pero su **alimentación** no debe tomarse del regulador del Arduino. Un servo pequeño puede pedir varios cientos de miliamperios al moverse, y esos picos hunden la tensión de la placa lo suficiente como para reiniciarla a mitad de operación.
+
+## Leer una salida 74LS desde el Arduino
+
+Cualquier unión entre dos familias distintas se comprueba con cuatro números de sus hojas de datos:
+
+- `V_OH(min)` — la peor tensión alta que **entrega** una salida.
+- `V_OL(max)` — la peor tensión baja que entrega.
+- `V_IH(min)` — la mínima que una entrada **acepta** como alto.
+- `V_IL(max)` — la máxima que acepta como bajo.
+
+Y con dos desigualdades:
+
+```text
+V_OH(min) del que manda  ≥  V_IH(min) del que recibe
+V_OL(max) del que manda  ≤  V_IL(max) del que recibe
+```
+
+Entre dos `74LS` la cuenta sale holgada: `2,7 V` contra `2,0 V` deja `0,7 V` de margen en alto, y `0,5 V` contra `0,8 V` deja `0,3 V` en bajo. Por eso encadenar integrados TTL entre sí no da problemas y nadie se acuerda de estos números.
+
+Aquí está el punto que no se ve venir: con el Arduino de por medio, la primera desigualdad se rompe. Una entrada del Arduino a `5 V` considera que hay un `1` a partir de `0,6 × 5 V = 3,0 V`, y una salida `74LS` en alto solo **garantiza** `2,7 V`:
+
+| | Nivel alto |
+|---|:---:|
+| Lo que el `74LS` garantiza entregar (`V_OH`) | `2,7 V` |
+| Lo que el Arduino exige para leer un `1` (`V_IH`) | `3,0 V` |
+
+Los números no se solapan. En la práctica una salida `74LS` sin carga suele quedar por encima de `3 V` y todo parece funcionar, que es lo peor que puede pasar: el circuito anda en la mesa y falla cuando cambia la temperatura, el chip o el fabricante.
+
+<Schematic
+  src="fundamentos/interfaz_74ls_arduino.svg"
+  alt="Salida Q de un 74LS74 conectada a una entrada del Arduino con resistencia de pull-up a +5 V y tierra común"
+  caption="La resistencia de pull-up levanta el nivel alto hasta cerca de 5 V sin impedir que la salida baje a 0. Un valor entre 4,7 kΩ y 10 kΩ es suficiente: la salida TTL puede absorber de sobra esa corriente cuando le toca poner un 0."
+/>
+
+Es exactamente la señal `AUTH_OK` de la Práctica 3: sale del latch `74LS74` y entra al Arduino. Si alguna vez la habilitación se lee de forma intermitente sin motivo aparente, este es el primer sitio donde mirar.
+
+## Escribir hacia una entrada 74LS
+
+En este sentido no hay problema. El Arduino entrega casi `5 V` en alto y prácticamente `0 V` en bajo, muy por dentro de lo que pide una entrada TTL. Lo único que hay que comprobar es la corriente en estado bajo: una entrada `74LS` entrega hasta `0,4 mA` que el pin debe absorber.
+
+```text
+20 mA ÷ 0,4 mA = 50 entradas
+```
+
+El margen es amplio; en un montaje del curso nunca es el límite. Lo que sí conviene es no dejar entradas `74LS` al aire esperando que el Arduino las gobierne más tarde: mientras no estén conectadas se comportan como un `1`, como se explica en [Bloques combinacionales](../bloques-combinacionales/).
+
+Para leer un pulsador, el Arduino tiene una ventaja que la lógica TTL no tiene: una resistencia de pull-up interna que se activa por programa.
+
+```cpp
+pinMode(boton_puerta, INPUT_PULLUP);
+```
+
+Esa resistencia interna ronda los `20` a `50 kΩ`. Es perfecta para una entrada CMOS, que casi no consume corriente, pero **sería inservible como pull-down o pull-up de una entrada `74LS`**, que necesita valores mucho menores por el motivo que se explica en [Entradas con DIP switch](../entradas-dip-switch/). El mismo botón pide una resistencia distinta según a quién se conecte.
+
+## La tierra tiene que ser común
+
+Un nivel lógico es una **diferencia de tensión respecto a una referencia**. Si el Arduino y la lógica se alimentan de fuentes distintas y sus tierras no están unidas, cada uno mide desde un cero diferente y los niveles dejan de significar nada.
+
+La regla es corta: **todas las fuentes del montaje comparten GND**. Los positivos pueden estar separados —de hecho conviene que el motor tenga el suyo—, pero la tierra es única. En el esquema anterior, esa línea inferior es lo que hace que el `2,7 V` del `74LS` y el `3,0 V` del Arduino sean comparables.
+
+## PWM no es una tensión intermedia
+
+`analogWrite()` no produce `2,5 V`. Produce una onda cuadrada que pasa parte del tiempo en `5 V` y el resto en `0 V`:
+
+<Waveform
+  signals={[
+    { name: 'analogWrite(64)', wave: '100010001000' },
+    { name: 'analogWrite(128)', wave: '110011001100' },
+    { name: 'analogWrite(191)', wave: '111011101110', accent: true },
+  ]}
+  spans={[{ from: 0, to: 4, label: 'un periodo ≈ 2 ms', at: 'top' }]}
+  caption="El pin solo toma dos valores; lo que cambia es cuánto tiempo pasa en cada uno. Un motor o un LED promedian esa onda y responden al valor medio."
+/>
+
+Un motor tiene inercia y un LED se ve por su brillo medio, así que ambos «promedian» la señal y el truco funciona. Una **entrada lógica no promedia nada**: ve una sucesión de flancos a unos `490 Hz`. Conectar una salida PWM al reloj de un contador hace que cuente cientos de veces por segundo, no que avance «a media velocidad».
+
+:::caution[La biblioteca Servo se queda con los pines 9 y 10]
+En el Arduino Uno, `Servo` usa el temporizador que gobierna las salidas PWM de los pines 9 y 10. Mientras esté en uso, `analogWrite()` sobre esos dos pines deja de tener efecto, haya o no un servo conectado ahí.
+
+En el proyecto de casa inteligente esto no causa problema porque el ventilador del pin 10 se controla con `digitalWrite()`, es decir, encendido o apagado. Pero si más adelante se quisiera regular su velocidad con `analogWrite()`, habría que moverlo a otro pin PWM —el 3, 5, 6 u 11— o el cambio simplemente no se notaría.
+:::
+
+## Los pines 0 y 1 son el puerto serie
+
+En el Uno, los pines `0` (RX) y `1` (TX) están conectados también al conversor USB. El módulo Bluetooth del proyecto ocupa esos dos pines, lo que tiene dos consecuencias prácticas:
+
+- **Al programar hay que desconectarlo.** Mientras el módulo esté cableado, la carga del programa por USB compite con él y suele fallar.
+- **Los mensajes salen por los dos sitios.** Lo que se envía con `Serial.print()` llega al monitor serie y al Bluetooth a la vez. Es cómodo para depurar y conviene tenerlo presente al diseñar el protocolo.
+
+Usar esos pines como entradas o salidas digitales corrientes es posible, pero cuesta caro: se pierde la comunicación, que suele ser la mejor herramienta de depuración disponible.
+
+## Errores que cuestan tiempo
+
+- **Alimentar un motor o un servo desde el pin.** Funciona unos segundos y después deja de funcionar para siempre.
+- **Sumar solo las corrientes de a una.** El límite de `200 mA` es del conjunto, no de cada pin.
+- **Leer una salida `74LS` sin pull-up.** El nivel alto queda en la franja donde nadie garantiza nada.
+- **No unir las tierras.** Los niveles dejan de ser comparables y los síntomas parecen aleatorios.
+- **Conectar PWM a una entrada de reloj.** El contador cuenta flancos, no promedios.
+- **Dejar el módulo Bluetooth conectado al programar.** La carga falla sin un mensaje que explique por qué.
+- **Copiar el valor de una resistencia de pull-up entre familias.** Lo que sirve para una entrada del Arduino no sirve para una `74LS`.
+
+## Dónde se aplica esto
+
+La [Práctica 3](../../practicas/practica-3/) reparte el trabajo entre el Arduino y la lógica `74LS`, y el [proyecto de casa inteligente](../../proyectos/casa-inteligente/) le añade actuadores reales. Para dimensionar el transistor y el diodo, ver [Etapas de potencia](../etapas-de-potencia/); para el antirrebote del botón, [Reloj, pulsadores y rebote](../reloj-y-rebote/); y para los límites eléctricos de la familia TTL, [Alimentar el montaje](../alimentacion-ttl/).

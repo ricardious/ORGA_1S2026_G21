@@ -2,14 +2,14 @@
   "name": "docs",
   "type": "module",
   "version": "0.0.1",
+  "packageManager": "pnpm@10.18.2",
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "optimize:svg": "svgo --folder public/svg --recursive --multipass",
-    "optimize:svg:p1": "svgo --folder public/svg/practicas/practica-1 --recursive --multipass"
+    "optimize:svg": "node scripts/strip-svg-background.mjs && svgo --folder public --recursive --multipass"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.37.6",

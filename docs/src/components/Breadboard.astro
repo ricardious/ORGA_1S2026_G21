@@ -1,0 +1,509 @@
+---
+/**
+ * Protoboard esquemático con las conexiones internas resaltables.
+ *
+ * No busca parecerse a una foto: el objetivo es que se vea **qué agujeros están
+ * unidos entre sí**, que es lo único que hay que entender para usarlo. Los
+ * grupos se pintan por encima de los agujeros, igual que las agrupaciones de un
+ * mapa de Karnaugh.
+ *
+ * Se dibuja como SVG en línea (no como `<img>`), así que toma los colores del
+ * tema directamente y no necesita el filtro de inversión del modo oscuro.
+ */
+interface Block {
+  /** Columna (1 a `columns`) del bloque de cinco agujeros. */
+  col: number;
+  /** Mitad del canal: `top` son las filas A-E, `bottom` las F-J. */
+  half: "top" | "bottom";
+  term: string;
+}
+
+interface Rail {
+  /** 0 y 1 son los rieles superiores; 2 y 3 los inferiores. */
+  index: 0 | 1 | 2 | 3;
+  term: string;
+}
+
+interface RailBreak {
+  /** Riel que se mostrará interrumpido. */
+  index: 0 | 1 | 2 | 3;
+  /** Columna después de la cual aparece la interrupción visual. */
+  afterCol: number;
+}
+
+interface RailBridge {
+  /** Riel que une el puente. */
+  index: 0 | 1 | 2 | 3;
+  fromCol: number;
+  toCol: number;
+  color: string;
+  term: string;
+  /** Dirección del arco para separar visualmente los cables. */
+  arch?: "up" | "down";
+}
+
+interface RailLink {
+  /** Une dos rieles situados en lados distintos del protoboard. */
+  fromRail: 0 | 1 | 2 | 3;
+  toRail: 0 | 1 | 2 | 3;
+  col: number;
+  color: string;
+  term: string;
+  bend?: "left" | "right";
+}
+
+interface Props {
+  columns?: number;
+  blocks?: Block[];
+  rails?: Rail[];
+  railBreaks?: RailBreak[];
+  railBridges?: RailBridge[];
+  railLinks?: RailLink[];
+  showRowLabels?: boolean;
+  showColumnLabels?: boolean;
+  /** Integrado a caballo del canal, empezando en la columna indicada. */
+  chip?: { col: number; pins: number; label?: string };
+  /** Componente mal colocado, dentro de una sola mitad, para ilustrar el error. */
+  badChip?: { col: number; pins: number };
+  caption?: string;
+}
+
+const {
+  columns = 24,
+  blocks = [],
+  rails = [],
+  railBreaks = [],
+  railBridges = [],
+  railLinks = [],
+  showRowLabels = true,
+  showColumnLabels = true,
+  chip,
+  badChip,
+  caption,
+} = Astro.props;
+
+const PITCH = 22;
+const PALETTE = ["#2563EB", "#DC2626", "#059669", "#D97706"];
+
+const LEFT = 34;
+// Margen suficiente para que las líneas de los rieles no queden pegadas al borde.
+const TOP = 26;
+
+// Cada par de rieles lleva su línea de color por el lado exterior de la placa:
+// el positivo hacia afuera arriba, y el negativo hacia adentro.
+const RAIL_STYLE = [
+  { polarity: "plus", dir: -1 },
+  { polarity: "minus", dir: 1 },
+  { polarity: "minus", dir: -1 },
+  { polarity: "plus", dir: 1 },
+] as const;
+
+// Distribución vertical, en múltiplos del paso. El canal central ocupa el hueco
+// de tres pasos que hay entre las filas E y F, igual que en un protoboard real.
+const RAIL_Y = [0, 1, 16, 17];
+const ROW_Y: Record<string, number> = {
+  A: 3, B: 4, C: 5, D: 6, E: 7,
+  F: 10, G: 11, H: 12, I: 13, J: 14,
+};
+const TOP_ROWS = ["A", "B", "C", "D", "E"];
+const BOTTOM_ROWS = ["F", "G", "H", "I", "J"];
+
+const x = (col: number) => LEFT + (col - 1) * PITCH;
+const y = (units: number) => TOP + units * PITCH;
+
+const width = LEFT * 2 + (columns - 1) * PITCH;
+const height = y(17) + TOP;
+
+const blockFills = blocks.map((block, index) => {
+  const rows = block.half === "top" ? TOP_ROWS : BOTTOM_ROWS;
+  return {
+    ...block,
+    color: PALETTE[index % PALETTE.length],
+    bx: x(block.col) - PITCH * 0.42,
+    by: y(ROW_Y[rows[0]]) - PITCH * 0.42,
+    bw: PITCH * 0.84,
+    bh: PITCH * 4 + PITCH * 0.84,
+  };
+});
+
+const railFills = rails.map((rail, index) => ({
+  ...rail,
+  color: PALETTE[(blocks.length + index) % PALETTE.length],
+  ry: y(RAIL_Y[rail.index]) - PITCH * 0.42,
+}));
+
+const bridgePaths = railBridges.map((bridge) => {
+  const railY = y(RAIL_Y[bridge.index]);
+  const direction = bridge.arch === "up" ? -1 : 1;
+  const controlY = railY + direction * PITCH * 1.15;
+  return {
+    ...bridge,
+    y: railY,
+    path: `M ${x(bridge.fromCol)} ${railY} Q ${(x(bridge.fromCol) + x(bridge.toCol)) / 2} ${controlY} ${x(bridge.toCol)} ${railY}`,
+  };
+});
+
+const linkPaths = railLinks.map((link) => {
+  const startY = y(RAIL_Y[link.fromRail]);
+  const endY = y(RAIL_Y[link.toRail]);
+  const direction = link.bend === "left" ? -1 : 1;
+  const controlX = x(link.col) + direction * PITCH * 0.9;
+  return {
+    ...link,
+    startY,
+    endY,
+    path: `M ${x(link.col)} ${startY} C ${controlX} ${startY + PITCH * 2} ${controlX} ${endY - PITCH * 2} ${x(link.col)} ${endY}`,
+  };
+});
+
+const legend = [
+  ...blockFills.map((b) => ({ color: b.color, term: b.term })),
+  ...railFills.map((r) => ({ color: r.color, term: r.term })),
+  ...bridgePaths.map((bridge) => ({ color: bridge.color, term: bridge.term })),
+  ...linkPaths.map((link) => ({ color: link.color, term: link.term })),
+];
+---
+
+<figure class="bb">
+  <div class="scroll">
+    <svg viewBox={`0 0 ${width} ${height}`} width={width} role="img" aria-label={caption ?? "Diagrama de protoboard"}>
+      <rect class="board" x="2" y="2" rx="8" width={width - 4} height={height - 4} />
+
+      <!-- Canal central: separa eléctricamente las dos mitades. -->
+      <rect
+        class="channel"
+        x="6"
+        y={y(ROW_Y.E) + PITCH * 0.6}
+        width={width - 12}
+        height={PITCH * 1.8}
+      />
+
+      <!-- Líneas de los rieles de alimentación. -->
+      {
+        RAIL_Y.map((unit, index) => {
+          const railBreak = railBreaks.find((item) => item.index === index);
+          const lineY = y(unit) + RAIL_STYLE[index].dir * 11;
+          if (!railBreak) {
+            return (
+              <line
+                class={`rail-${RAIL_STYLE[index].polarity}`}
+                x1={LEFT - 20}
+                x2={width - LEFT + 20}
+                y1={lineY}
+                y2={lineY}
+              />
+            );
+          }
+
+          const breakX = (x(railBreak.afterCol) + x(railBreak.afterCol + 2)) / 2;
+          return (
+            <g>
+              <line
+                class={`rail-${RAIL_STYLE[index].polarity}`}
+                x1={LEFT - 20}
+                x2={breakX - 8}
+                y1={lineY}
+                y2={lineY}
+              />
+              <line
+                class={`rail-${RAIL_STYLE[index].polarity}`}
+                x1={breakX + 8}
+                x2={width - LEFT + 20}
+                y1={lineY}
+                y2={lineY}
+              />
+              <path class="rail-cut" d={`M ${breakX - 5} ${lineY - 4} l 4 8 m 2 -8 l 4 8`} />
+            </g>
+          );
+        })
+      }
+
+      <!-- Resaltados, por debajo de los agujeros. -->
+      {
+        railFills.map((rail) => (
+          <rect
+            x={LEFT - 14}
+            y={rail.ry}
+            width={(columns - 1) * PITCH + 28}
+            height={PITCH * 0.84}
+            rx={PITCH * 0.42}
+            fill={rail.color}
+            fill-opacity="0.22"
+            stroke={rail.color}
+            stroke-width="1.5"
+          />
+        ))
+      }
+      {
+        blockFills.map((block) => (
+          <rect
+            x={block.bx}
+            y={block.by}
+            width={block.bw}
+            height={block.bh}
+            rx={PITCH * 0.42}
+            fill={block.color}
+            fill-opacity="0.22"
+            stroke={block.color}
+            stroke-width="1.5"
+          />
+        ))
+      }
+
+      <!-- Agujeros de los rieles. -->
+      {
+        RAIL_Y.map((unit) =>
+          Array.from({ length: columns }, (_, i) => i + 1)
+            .filter((col) => col % 6 !== 0)
+            .map((col) => <circle class="hole" cx={x(col)} cy={y(unit)} r="3.1" />),
+        )
+      }
+
+      <!-- Agujeros del área central. -->
+      {
+        [...TOP_ROWS, ...BOTTOM_ROWS].map((row) =>
+          Array.from({ length: columns }, (_, i) => i + 1).map((col) => (
+            <circle class="hole" cx={x(col)} cy={y(ROW_Y[row])} r="3.1" />
+          )),
+        )
+      }
+
+      <!-- Puentes que restablecen la continuidad de un riel dividido. -->
+      {
+        bridgePaths.map((bridge) => (
+          <g>
+            <path class="jumper-shadow" d={bridge.path} />
+            <path class="jumper" d={bridge.path} stroke={bridge.color} />
+            <circle class="jumper-terminal" cx={x(bridge.fromCol)} cy={bridge.y} r="4.5" fill={bridge.color} />
+            <circle class="jumper-terminal" cx={x(bridge.toCol)} cy={bridge.y} r="4.5" fill={bridge.color} />
+          </g>
+        ))
+      }
+
+      <!-- Cables que llevan VCC y GND de los rieles superiores a los inferiores. -->
+      {
+        linkPaths.map((link) => (
+          <g>
+            <path class="jumper-shadow" d={link.path} />
+            <path class="jumper" d={link.path} stroke={link.color} />
+            <circle class="jumper-terminal" cx={x(link.col)} cy={link.startY} r="4.5" fill={link.color} />
+            <circle class="jumper-terminal" cx={x(link.col)} cy={link.endY} r="4.5" fill={link.color} />
+          </g>
+        ))
+      }
+
+      <!-- Etiquetas de fila y de columna. -->
+      {
+        showRowLabels && [...TOP_ROWS, ...BOTTOM_ROWS].map((row) => (
+          <text class="label" x={LEFT - 18} y={y(ROW_Y[row]) + 4} text-anchor="middle">
+            {row}
+          </text>
+        ))
+      }
+      {
+        showColumnLabels && Array.from({ length: columns }, (_, i) => i + 1)
+          .filter((col) => col === 1 || col % 5 === 0)
+          .map((col) => (
+            <text class="label" x={x(col)} y={y(ROW_Y.E) + PITCH * 1.55} text-anchor="middle">
+              {col}
+            </text>
+          ))
+      }
+
+      {
+        chip && (
+          <g>
+            <rect
+              class="chip"
+              x={x(chip.col) - PITCH * 0.5}
+              y={y(ROW_Y.E) - PITCH * 0.15}
+              width={PITCH * (chip.pins / 2 - 1) + PITCH}
+              height={y(ROW_Y.F) - y(ROW_Y.E) + PITCH * 0.3}
+              rx="4"
+            />
+            {Array.from({ length: chip.pins / 2 }, (_, i) => chip.col + i).map((col) => (
+              <g>
+                <line class="pin" x1={x(col)} x2={x(col)} y1={y(ROW_Y.E)} y2={y(ROW_Y.E) + PITCH * 0.3} />
+                <line class="pin" x1={x(col)} x2={x(col)} y1={y(ROW_Y.F) - PITCH * 0.3} y2={y(ROW_Y.F)} />
+              </g>
+            ))}
+            {chip.label && (
+              <text
+                class="chip-label"
+                x={x(chip.col) + (PITCH * (chip.pins / 2 - 1)) / 2}
+                y={y(ROW_Y.E) + (y(ROW_Y.F) - y(ROW_Y.E)) / 2 + 4}
+                text-anchor="middle"
+              >
+                {chip.label}
+              </text>
+            )}
+          </g>
+        )
+      }
+
+      {
+        badChip && (
+          <g>
+            <rect
+              class="chip bad"
+              x={x(badChip.col) - PITCH * 0.5}
+              y={y(ROW_Y.B) - PITCH * 0.15}
+              width={PITCH * (badChip.pins / 2 - 1) + PITCH}
+              height={y(ROW_Y.C) - y(ROW_Y.B) + PITCH * 0.3}
+              rx="4"
+            />
+            {Array.from({ length: badChip.pins / 2 }, (_, i) => badChip.col + i).map((col) => (
+              <g>
+                <line class="pin" x1={x(col)} x2={x(col)} y1={y(ROW_Y.B)} y2={y(ROW_Y.B) + PITCH * 0.3} />
+                <line class="pin" x1={x(col)} x2={x(col)} y1={y(ROW_Y.C) - PITCH * 0.3} y2={y(ROW_Y.C)} />
+              </g>
+            ))}
+          </g>
+        )
+      }
+    </svg>
+  </div>
+
+  {
+    legend.length > 0 && (
+      <ul class="legend">
+        {legend.map((item) => (
+          <li>
+            <span class="swatch" style={`--swatch:${item.color}`} />
+            <span>{item.term}</span>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+
+  {caption && <figcaption>{caption}</figcaption>}
+</figure>
+
+<style>
+  .bb {
+    margin: 1.75rem 0;
+  }
+
+  /* Los protoboards son anchos: en móvil se desplaza en vez de encoger. */
+  .bb .scroll {
+    overflow-x: auto;
+  }
+
+  .bb svg {
+    max-width: 100%;
+    height: auto;
+    min-width: 30rem;
+  }
+
+  .bb .board {
+    fill: var(--sl-color-gray-6);
+    stroke: var(--sl-color-gray-5);
+  }
+
+  .bb .channel {
+    fill: var(--sl-color-gray-5);
+    opacity: 0.55;
+  }
+
+  .bb .hole {
+    fill: var(--sl-color-gray-4);
+  }
+
+  .bb .rail-plus {
+    stroke: #dc2626;
+    stroke-width: 1.5;
+    opacity: 0.75;
+  }
+
+  .bb .rail-minus {
+    stroke: #2563eb;
+    stroke-width: 1.5;
+    opacity: 0.75;
+  }
+
+  .bb .rail-cut {
+    fill: none;
+    stroke: var(--sl-color-gray-2);
+    stroke-width: 1.8;
+    stroke-linecap: round;
+  }
+
+  .bb .jumper-shadow {
+    fill: none;
+    stroke: var(--sl-color-gray-6);
+    stroke-width: 8;
+    stroke-linecap: round;
+  }
+
+  .bb .jumper {
+    fill: none;
+    stroke-width: 4.5;
+    stroke-linecap: round;
+  }
+
+  .bb .jumper-terminal {
+    stroke: var(--sl-color-gray-6);
+    stroke-width: 1.5;
+  }
+
+  .bb .label {
+    fill: var(--sl-color-gray-3);
+    font-size: 11px;
+    font-family: var(--__sl-font);
+  }
+
+  .bb .chip {
+    fill: var(--sl-color-gray-2);
+    stroke: var(--sl-color-gray-1);
+  }
+
+  .bb .chip.bad {
+    fill: #dc2626;
+    fill-opacity: 0.75;
+    stroke: #dc2626;
+  }
+
+  .bb .pin {
+    stroke: var(--sl-color-gray-3);
+    stroke-width: 3;
+  }
+
+  .bb .chip-label {
+    fill: var(--sl-color-gray-6);
+    font-size: 11px;
+    font-family: var(--__sl-font);
+  }
+
+  .bb .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.1rem;
+    margin: 0.75rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .bb .legend li {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0;
+    font-size: var(--sl-text-sm);
+  }
+
+  .bb .swatch {
+    width: 0.85rem;
+    height: 0.85rem;
+    border-radius: 0.2rem;
+    background: color-mix(in srgb, var(--swatch) 26%, transparent);
+    border: 1.5px solid var(--swatch);
+    flex-shrink: 0;
+  }
+
+  .bb figcaption {
+    margin-top: 0.6rem;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-3);
+  }
+</style>

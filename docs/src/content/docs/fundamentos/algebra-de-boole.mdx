@@ -1,0 +1,227 @@
+---
+title: Del enunciado a la tabla de verdad
+description: Cómo pasar de un requisito escrito a entradas, salidas, tabla de verdad y ecuación canónica, y qué leyes del álgebra de Boole hacen falta para manipularla.
+sidebar:
+  order: 1
+---
+
+import BlockFlow from '../../../components/BlockFlow.astro';
+import KMap from '../../../components/KMap.astro';
+import SevenSegmentGlyph from '../../../components/SevenSegmentGlyph.astro';
+
+Los mapas de Karnaugh simplifican una ecuación y las compuertas la construyen. Pero antes hay un paso sin atajo: decidir **qué señales entran, cuáles salen y qué debe valer cada combinación**. Ese paso no se simplifica ni se automatiza, y es donde se pierde más tiempo, porque un error aquí no se nota hasta que el circuito ya está armado.
+
+## El recorrido completo
+
+<BlockFlow
+  steps={[
+    { title: 'enunciado', sub: 'en palabras' },
+    { title: 'entradas y salidas', sub: 'nombre y ancho' },
+    { title: 'tabla de verdad', sub: '2ⁿ filas' },
+    { title: 'forma canónica', sub: 'Σm o ΠM' },
+    { title: 'mapa de Karnaugh', sub: 'agrupar' },
+    { title: 'circuito', sub: 'compuertas' },
+  ]}
+  links={['qué observa', 'una fila', 'un término', 'agrupar', 'ecuación']}
+  caption="Solo los dos últimos pasos son mecánicos. Los tres primeros son decisiones, y si una está mal el resto del recorrido las propaga sin avisar."
+/>
+
+Esta página cubre los tres primeros pasos. Los dos últimos están en [Mapas de Karnaugh](../mapas-de-karnaugh/) y [Compuertas lógicas con transistores](../compuertas-transistorizadas/).
+
+## Primero: qué entra y qué sale
+
+Antes de escribir una sola fila hay que contestar tres preguntas por cada señal:
+
+1. **¿Cómo se llama?** Un nombre corto y estable, que se use igual en la tabla, en la ecuación y en el rótulo del protoboard.
+2. **¿Cuántos bits ocupa?** Una señal de control suele ser de 1 bit; un operando, de 4 u 8.
+3. **¿Qué nivel significa activo?** Un `1` puede significar «encendido» o «apagado». Hay que decidirlo y anotarlo.
+
+Conviene verlo sobre un caso concreto, que además es el que se resuelve al final de la página.
+
+Un display de 7 segmentos es exactamente eso: siete barras que se encienden por separado. Cada una tiene su letra, y son siempre las mismas:
+
+<SevenSegmentGlyph activeSegments={['g']} glowId="glow-algebra-g" maxWidth={160} lowercaseLabels />
+
+La del centro es la **`g`**, encendida en el dibujo. Cuidado con una coincidencia incómoda: los segmentos se rotulan de la `a` a la `g`, y las entradas del bloque se van a llamar `A`, `B` y `C`. No tienen nada que ver entre sí. En todo el sitio las **entradas van en mayúscula** y los **segmentos en minúscula**. Para representar una cifra hay que decidir, barra por barra, si se enciende o no; aquí nos ocuparemos solo de esa. Con eso ya se pueden nombrar las señales del bloque que la gobierna:
+
+| Señal | Tipo | Ancho | Activo en | Significado |
+|---|---|:---:|:---:|---|
+| `A B C` | entrada | 3 bits | — | cifra a mostrar, de 0 a 7 |
+| `g` | salida | 1 bit | alto | enciende la barra del centro |
+| `/APAGAR` | entrada | 1 bit | bajo | apaga el display cuando vale `0` |
+
+Compara las dos últimas filas, porque ahí está la tercera pregunta. `g` es **activa en alto**: enciende el segmento cuando vale `1`, que es lo que cualquiera supondría. `/APAGAR` es **activa en bajo**: hace su trabajo cuando vale `0`, al revés de lo que sugiere el nombre. La barra delante está precisamente para avisarlo —en algunos textos se dibuja como una raya encima del nombre— y por eso se escribe siempre, incluso en un borrador.
+
+Parece un detalle menor y es de los que más tiempo cuestan. Si en la tabla anotas que apaga con `1` y el circuito la apaga con `0`, la tabla entera queda invertida respecto al montaje, y eso no se descubre hasta que nada funciona. Por eso la columna «activo en» se rellena **antes** de escribir la primera fila.
+
+No es un capricho de este ejemplo: muchas entradas de habilitación y de borrado funcionan así, y volverás a encontrarlas en [Bloques combinacionales](../bloques-combinacionales/).
+
+Con `n` entradas hay `2ⁿ` combinaciones, y la tabla debe tenerlas todas:
+
+| Entradas | Filas |
+|:---:|:---:|
+| 2 | 4 |
+| 3 | 8 |
+| 4 | 16 |
+| 5 | 32 |
+
+## La tabla se llena en orden binario
+
+Las filas van de `00…0` a `11…1`, contando en binario. No es una costumbre estética: **el número de fila es el número de mintérmino**. Si se altera el orden, la numeración deja de coincidir y toda la notación posterior se rompe.
+
+| Fila | `A` | `B` | `C` |
+|:---:|:---:|:---:|:---:|
+| 0 | 0 | 0 | 0 |
+| 1 | 0 | 0 | 1 |
+| 2 | 0 | 1 | 0 |
+| 3 | 0 | 1 | 1 |
+| 4 | 1 | 0 | 0 |
+| 5 | 1 | 0 | 1 |
+| 6 | 1 | 1 | 0 |
+| 7 | 1 | 1 | 1 |
+
+`A` es el bit más significativo. Esa decisión también hay que tomarla y mantenerla: si en la tabla `A` pesa 4 pero en el protoboard se cablea en el pin de peso 1, el circuito funcionará según una tabla distinta de la que se diseñó.
+
+:::caution[El mapa de Karnaugh no usa este orden]
+En la tabla de verdad las filas van `00`, `01`, `10`, `11`. En un K-map las columnas van `00`, `01`, `11`, `10`, en código Gray, para que celdas vecinas difieran en un solo bit. Son dos órdenes distintos a propósito, y el motivo está explicado en [Mapas de Karnaugh](../mapas-de-karnaugh/).
+:::
+
+## Los tres operadores
+
+| Operación | Notación | Resultado en `1` cuando… |
+|---|:---:|---|
+| AND | `A · B`, o simplemente `AB` | todas las entradas valen `1` |
+| OR | `A + B` | al menos una entrada vale `1` |
+| NOT | `A'` | la entrada vale `0` |
+
+El punto y el signo más se parecen a la multiplicación y la suma, y algunas reglas coinciden, pero no todas: en álgebra de Boole `1 + 1 = 1`, no 2. Conviene leer `+` como «o» y `·` como «y» en vez de traducirlos a aritmética.
+
+## Las leyes que se usan de verdad
+
+| Ley | Con AND | Con OR |
+|---|---|---|
+| Identidad | `A · 1 = A` | `A + 0 = A` |
+| Elemento nulo | `A · 0 = 0` | `A + 1 = 1` |
+| Idempotencia | `A · A = A` | `A + A = A` |
+| Complemento | `A · A' = 0` | `A + A' = 1` |
+| Absorción | `A · (A + B) = A` | `A + A · B = A` |
+| Distributiva | `A · (B + C) = AB + AC` | `A + BC = (A + B)(A + C)` |
+
+De todas, la que hace el trabajo pesado es el **complemento**. Es la que permite que una variable desaparezca:
+
+```text
+A B C + A B C' = A B (C + C') = A B · 1 = A B
+```
+
+Dos términos que solo se diferencian en una variable se funden en uno y esa variable se va. Eso es exactamente lo que representa un grupo de dos celdas en un mapa de Karnaugh: el mapa no hace nada que el álgebra no haga, solo lo hace visible.
+
+## De Morgan: la ley que hay que saber de memoria
+
+```text
+(A · B)' = A' + B'
+(A + B)' = A' · B'
+```
+
+Negar una operación completa la convierte en la otra y niega cada entrada. Importa por una razón muy concreta: como se explica en [Compuertas lógicas con transistores](../compuertas-transistorizadas/), las compuertas naturales son la NAND y la NOR, y las AND y OR se construyen a partir de ellas. De Morgan es lo que permite reescribir una ecuación en función de la compuerta que realmente se tiene.
+
+Leído al revés dice algo útil: **una NAND es también una OR con las entradas negadas**. Son el mismo circuito descrito de dos maneras.
+
+:::caution[El error más repetido]
+`(A · B)'` **no** es `A' · B'`. Negar cada variable por separado no es lo mismo que negar el resultado. Sustituye `A = 1`, `B = 0` y compruébalo: `(1 · 0)' = 1`, mientras que `1' · 0' = 0 · 1 = 0`.
+:::
+
+## De la tabla a la ecuación
+
+Con la tabla llena, la ecuación sale directamente. Hay dos formas de leerla, y ambas son correctas.
+
+**Suma de productos (SOP).** Se mira cada fila cuya salida vale `1` y se escribe un producto, el **mintérmino**: cada variable aparece directa si en esa fila vale `1`, y negada si vale `0`. Después se suman todos.
+
+**Producto de sumas (POS).** Se mira cada fila cuya salida vale `0` y se escribe una suma, el **maxtérmino**, con la regla invertida: la variable aparece negada si vale `1` y directa si vale `0`. Después se multiplican todos.
+
+Como cada fila queda identificada por su número, las dos formas se abrevian así:
+
+```text
+g = Σm(2, 3, 4, 5, 6)      suma de los mintérminos 2, 3, 4, 5 y 6
+g = ΠM(0, 1, 7)            producto de los maxtérminos 0, 1 y 7
+```
+
+Las dos expresiones describen la misma función. Los números de una son exactamente las filas que faltan en la otra.
+
+## Ejemplo completo
+
+> Un display debe mostrar las cifras del `0` al `7`, codificadas en tres bits `A B C`. El segmento central `g` se enciende en todas las cifras salvo en el `0`, el `1` y el `7`.
+
+Primero, las señales: entran tres bits (`A` el más significativo), sale una línea `g` activa en alto. La tabla tiene `2³ = 8` filas.
+
+| Fila | `A` | `B` | `C` | Cifra | `g` |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| 0 | 0 | 0 | 0 | 0 | 0 |
+| 1 | 0 | 0 | 1 | 1 | 0 |
+| 2 | 0 | 1 | 0 | 2 | 1 |
+| 3 | 0 | 1 | 1 | 3 | 1 |
+| 4 | 1 | 0 | 0 | 4 | 1 |
+| 5 | 1 | 0 | 1 | 5 | 1 |
+| 6 | 1 | 1 | 0 | 6 | 1 |
+| 7 | 1 | 1 | 1 | 7 | 0 |
+
+Las filas con `g = 1` son la 2, 3, 4, 5 y 6. Escribiendo un mintérmino por cada una:
+
+```text
+g = A'BC' + A'BC + AB'C' + AB'C + ABC'
+```
+
+Esa es la **forma canónica**: siempre funciona, siempre tiene todas las variables en todos los términos y casi nunca es la más corta. Aplicando el complemento a los dos primeros pares:
+
+```text
+A'BC' + A'BC = A'B (C' + C) = A'B
+AB'C' + AB'C = AB' (C' + C) = AB'
+
+g = A'B + AB' + ABC'
+```
+
+Y el término que sobra todavía se puede reducir, porque `A'B + ABC'` comparte la `B`:
+
+```text
+A'B + ABC' = B (A' + AC') = B (A' + C') = A'B + BC'
+
+g = A'B + AB' + BC'
+```
+
+De cinco términos de tres variables a tres términos de dos. El mapa de Karnaugh llega al mismo sitio sin cadenas de sustituciones:
+
+<KMap
+  values="00111110"
+  groups={[
+    { cells: [2, 3], term: "A'B" },
+    { cells: [4, 5], term: "AB'" },
+    { cells: [2, 6], term: "BC'" },
+  ]}
+  caption="Los mismos tres términos, vistos como tres grupos de dos celdas. La celda 2 aparece en dos colores porque pertenece a dos grupos a la vez: reutilizarla es legítimo por la idempotencia, A + A = A, que permite contar un mismo mintérmino en dos agrupaciones."
+/>
+
+Cinco términos y quince variables se convierten en tres términos y seis. Eso son compuertas que no hay que comprar, pines que no hay que cablear y errores que no se pueden cometer.
+
+## Condiciones que no importan
+
+A veces una combinación de entrada **no puede ocurrir** o su salida **da igual**. En la tabla se marca con `X` en vez de `0` o `1`.
+
+El caso típico del curso son las cifras BCD: con cuatro bits hay dieciséis combinaciones, pero solo diez son cifras decimales. Las seis restantes, de `1010` a `1111`, no representan nada, y como se explica en [Aritmética binaria](../aritmetica-binaria/) nunca deberían llegar al decodificador.
+
+Una `X` es una libertad: al agrupar se le puede dar el valor que más convenga, `1` en un grupo que crezca o `0` si estorba. A menudo es lo que separa una ecuación de tres términos de una de cinco.
+
+:::caution[«No importa» es una decisión de diseño, no una promesa]
+El circuito no tiene condiciones indefinidas: si esa combinación llega, saldrá lo que dicte la ecuación que se construyó. Marcar una `X` significa «acepto cualquier resultado», no «esto no va a pasar». Si esa entrada puede aparecer por un error de cableado o un cálculo fuera de rango, conviene decidir su valor en vez de dejarlo al azar del agrupamiento.
+:::
+
+## Errores que cuestan tiempo
+
+- **Cablear antes de tener la tabla completa.** Cada fila que falta es una combinación que el circuito resolverá por accidente.
+- **Cambiar el orden de las filas.** La numeración de mintérminos deja de coincidir y `Σm(2,3)` pasa a señalar otras filas.
+- **No anotar si una señal es activa en bajo.** La tabla queda invertida respecto al circuito y todo parece funcionar al revés.
+- **Deducir la ecuación mirando solo algunas filas.** Las que no se miran no valen `0` por omisión: hay que decidirlas.
+- **Confundir `A'B` con `(AB)'`.** La primera niega una variable; la segunda, el producto entero.
+- **Cambiar qué bit es el más significativo a mitad del diseño.** La tabla sigue siendo válida, pero ya no describe el circuito.
+
+## Dónde se aplica esto
+
+La [Práctica 1](../../practicas/practica-1/) construye exactamente esta tabla siete veces, una por segmento, y en las dos variantes de display. El paso siguiente —agrupar para simplificar— está en [Mapas de Karnaugh](../mapas-de-karnaugh/), y hay una [calculadora interactiva](../../calculadoras/karnaugh/) para comprobar el resultado. Para convertir la ecuación en circuito, ver [Compuertas lógicas con transistores](../compuertas-transistorizadas/).

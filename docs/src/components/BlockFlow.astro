@@ -1,0 +1,312 @@
+---
+/**
+ * Recorrido de una señal a través de varios bloques.
+ *
+ * Sustituye a los diagramas hechos con flechas en un bloque de código: aquí las
+ * cajas tienen el mismo ancho, las flechas se pueden etiquetar y el dibujo
+ * hereda los colores del tema. Además admite las dos cosas que un `→` en texto
+ * no puede expresar: una realimentación que vuelve hacia atrás y una entrada
+ * lateral que no forma parte de la cadena principal.
+ */
+
+interface Step {
+  title: string;
+  sub?: string;
+  /** Destaca el bloque; úsalo para el que se está explicando. */
+  accent?: boolean;
+}
+
+interface Props {
+  steps: Step[];
+  /** Rótulos de las flechas. Debe haber uno menos que bloques, o ninguno. */
+  links?: string[];
+  /** Lazo que regresa de un bloque a otro anterior, dibujado por encima. */
+  feedback?: { from: number; to: number; label: string };
+  /** Entrada que llega desde fuera de la cadena, dibujada por debajo. */
+  aside?: { at: number; title: string; sub?: string };
+  caption?: string;
+}
+
+const { steps, links = [], feedback, aside, caption } = Astro.props;
+
+if (steps.length < 2) {
+  throw new Error("<BlockFlow />: hacen falta al menos dos bloques.");
+}
+if (links.length > 0 && links.length !== steps.length - 1) {
+  throw new Error(
+    `<BlockFlow />: hay ${steps.length} bloques, así que se esperaban ${steps.length - 1} rótulos de flecha y llegaron ${links.length}.`,
+  );
+}
+for (const index of [feedback?.from, feedback?.to, aside?.at]) {
+  if (index !== undefined && (index < 0 || index >= steps.length)) {
+    throw new Error(`<BlockFlow />: el bloque ${index} no existe.`);
+  }
+}
+
+const PAD = 14;
+
+/**
+ * Separación entre cajas.
+ *
+ * El rótulo de la flecha va centrado en este hueco, y las cajas se dibujan
+ * después, así que un rótulo más ancho que el hueco quedaba tapado por la caja
+ * siguiente. El hueco crece con el rótulo más largo: 12,5 px de monoespaciada
+ * ocupan unos 7,5 px por carácter.
+ */
+const longestLink = links.reduce((max, label) => Math.max(max, label.length), 0);
+const GAP = Math.max(58, Math.round(longestLink * 7.5) + 18);
+
+// Ancho común para todas las cajas: el texto más largo manda, de modo que la
+// cadena queda regular aunque un bloque se llame mucho más que otro. La entrada
+// lateral usa ese mismo ancho, así que su texto también cuenta: si se deja
+// fuera, un rótulo largo en el `aside` se sale de su propia caja.
+const longest = Math.max(
+  ...steps.flatMap((step) => [step.title.length, (step.sub ?? "").length * 0.85]),
+  ...(aside ? [aside.title.length, (aside.sub ?? "").length * 0.85] : []),
+);
+const BOX_W = Math.max(140, Math.round(longest * 8.4) + 26);
+const hasSub = steps.some((step) => step.sub);
+const BOX_H = hasSub ? 78 : 58;
+
+const topPad = feedback ? 66 : PAD;
+const boxY = topPad;
+const asideGap = 62;
+const ASIDE_H = 52;
+const bottomExtra = aside ? asideGap + ASIDE_H : 0;
+
+const height = boxY + BOX_H + bottomExtra + PAD;
+const width = steps.length * BOX_W + (steps.length - 1) * GAP + PAD * 2;
+
+/**
+ * Suelo de reducción.
+ *
+ * Al encogerse para caber en la columna, el texto se encoge con el dibujo: una
+ * cadena de seis bloques quedaba por debajo de los 7 px. Agrandar la tipografía
+ * no sirve —la caja tendría que crecer igual y la proporción no cambia—, así que
+ * el SVG se reduce solo hasta este punto y a partir de ahí la caja se desplaza.
+ */
+const MIN_SCALE = 0.78;
+
+const boxX = (index: number) => PAD + index * (BOX_W + GAP);
+const boxMid = (index: number) => boxX(index) + BOX_W / 2;
+const midY = boxY + BOX_H / 2;
+
+const uid = `bf-${Math.random().toString(36).slice(2, 8)}`;
+
+/** Trayecto del lazo de realimentación: sube, cruza y vuelve a bajar. */
+const feedbackPath = feedback
+  ? (() => {
+      const fromX = boxMid(feedback.from);
+      const toX = boxMid(feedback.to);
+      const lane = boxY - 40;
+      return `M ${fromX} ${boxY} V ${lane} H ${toX} V ${boxY - 8}`;
+    })()
+  : null;
+---
+
+<figure class="flow">
+  <div class="scroller">
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      width={width}
+      style={`min-width:${Math.round(width * MIN_SCALE)}px`}
+      role="img"
+      aria-label={caption ?? "Diagrama de bloques"}
+    >
+      <defs>
+        <marker
+          id={`${uid}-tip`}
+          viewBox="0 0 10 10"
+          refX="9"
+          refY="5"
+          markerWidth="5.5"
+          markerHeight="5.5"
+          orient="auto"
+        >
+          <path d="M 0 0 L 10 5 L 0 10 z" class="tip"></path>
+        </marker>
+      </defs>
+
+      {
+        steps.slice(0, -1).map((_, index) => (
+          <>
+            <path
+              d={`M ${boxX(index) + BOX_W + 6} ${midY} H ${boxX(index + 1) - 8}`}
+              class="link"
+              marker-end={`url(#${uid}-tip)`}
+            />
+            {links[index] && (
+              <text
+                x={(boxX(index) + BOX_W + boxX(index + 1)) / 2}
+                y={midY - 12}
+                class="link-label"
+              >
+                {links[index]}
+              </text>
+            )}
+          </>
+        ))
+      }
+
+      {
+        steps.map((step, index) => (
+          <g class={step.accent ? "box accent" : "box"}>
+            <rect x={boxX(index)} y={boxY} width={BOX_W} height={BOX_H} rx="10" />
+            <text
+              x={boxMid(index)}
+              y={step.sub ? boxY + BOX_H / 2 - 8 : midY}
+              class="title"
+            >
+              {step.title}
+            </text>
+            {step.sub && (
+              <text x={boxMid(index)} y={boxY + BOX_H / 2 + 15} class="sub">
+                {step.sub}
+              </text>
+            )}
+          </g>
+        ))
+      }
+
+      {
+        feedbackPath && (
+          <>
+            <path d={feedbackPath} class="feedback" marker-end={`url(#${uid}-tip)`} />
+            <text
+              x={(boxMid(feedback!.from) + boxMid(feedback!.to)) / 2}
+              y={boxY - 48}
+              class="feedback-label"
+            >
+              {feedback!.label}
+            </text>
+          </>
+        )
+      }
+
+      {
+        aside && (
+          <g class="box aside">
+            <rect
+              x={boxMid(aside.at) - BOX_W / 2}
+              y={boxY + BOX_H + asideGap}
+              width={BOX_W}
+              height={ASIDE_H}
+              rx="10"
+            />
+            <text
+              x={boxMid(aside.at)}
+              y={boxY + BOX_H + asideGap + (aside.sub ? 21 : ASIDE_H / 2 + 5)}
+              class="title"
+            >
+              {aside.title}
+            </text>
+            {aside.sub && (
+              <text
+                x={boxMid(aside.at)}
+                y={boxY + BOX_H + asideGap + 40}
+                class="sub"
+              >
+                {aside.sub}
+              </text>
+            )}
+            <path
+              d={`M ${boxMid(aside.at)} ${boxY + BOX_H + asideGap - 6} V ${boxY + BOX_H + 8}`}
+              class="link"
+              marker-end={`url(#${uid}-tip)`}
+            />
+          </g>
+        )
+      }
+    </svg>
+  </div>
+
+  {caption && <figcaption>{caption}</figcaption>}
+</figure>
+
+<style>
+  .flow {
+    margin: 1.75rem 0;
+  }
+
+  /* Una cadena de cinco bloques no cabe en móvil sin volverse ilegible: se
+     desplaza dentro de su caja en lugar de encoger el texto. */
+  .flow .scroller {
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+  }
+
+  .flow svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .flow .box rect {
+    fill: var(--sl-color-gray-6);
+    stroke: var(--sl-color-gray-5);
+    stroke-width: 1.5;
+  }
+
+  .flow .box.accent rect {
+    fill: color-mix(in srgb, var(--sl-color-accent) 18%, transparent);
+    stroke: var(--sl-color-accent);
+  }
+
+  .flow .box.aside rect {
+    stroke-dasharray: 5 4;
+  }
+
+  .flow .title {
+    fill: var(--sl-color-white);
+    font-size: 15px;
+    font-weight: 600;
+    text-anchor: middle;
+    dominant-baseline: middle;
+  }
+
+  .flow .sub {
+    fill: var(--sl-color-gray-3);
+    font-size: 12.5px;
+    text-anchor: middle;
+    dominant-baseline: middle;
+  }
+
+  .flow .link,
+  .flow .feedback {
+    fill: none;
+    stroke: var(--sl-color-gray-4);
+    stroke-width: 1.8;
+    stroke-linejoin: round;
+  }
+
+  .flow .feedback {
+    stroke: var(--sl-color-accent);
+    stroke-dasharray: 6 5;
+  }
+
+  .flow .tip {
+    fill: var(--sl-color-gray-4);
+  }
+
+  .flow .link-label {
+    fill: var(--sl-color-gray-3);
+    font-size: 12.5px;
+    text-anchor: middle;
+    font-family: var(--sl-font-system-mono, monospace);
+  }
+
+  .flow .feedback-label {
+    fill: var(--sl-color-accent-high);
+    font-size: 12.5px;
+    font-weight: 600;
+    text-anchor: middle;
+  }
+
+  .flow figcaption {
+    margin-top: 0.7rem;
+    font-size: var(--sl-text-sm);
+    line-height: 1.5;
+    color: var(--sl-color-gray-3);
+    text-wrap: balance;
+  }
+</style>

@@ -1,0 +1,120 @@
+---
+title: Entradas con DIP switch
+description: Cómo cablear un DIP switch para generar entradas binarias limpias, por qué hace falta la resistencia y qué valor usar con TTL.
+sidebar:
+  order: 4
+---
+
+import Schematic from '../../../components/Schematic.astro';
+
+Las tres prácticas necesitan lo mismo: **meter un número binario al circuito a mano**. La Práctica 1 usa tres bits (`A`, `B`, `C`) para seleccionar el carácter, la Práctica 2 usa dos grupos de cuatro para los operandos, y la Práctica 3 usa cuatro para la contraseña.
+
+El componente es siempre el mismo —un DIP switch— y el error de cableado también.
+
+## El error: un interruptor solo no basta
+
+Lo primero que uno intenta es conectar el interruptor entre `V_CC` y la entrada del circuito. Con el interruptor cerrado funciona: la línea queda en `1`.
+
+El problema es al abrirlo.
+
+<Schematic
+  src="fundamentos/dip_switch_flotante.svg"
+  alt="Interruptor conectado entre VCC y una entrada, sin resistencia, dejando la línea flotante al abrirse"
+  caption="Cableado incorrecto: al abrir el interruptor, la entrada no queda en 0, queda desconectada."
+/>
+
+Abrir el interruptor **no pone la línea en `0`**: la deja sin conectar a nada. Una entrada al aire —flotante— toma el valor que le dicte el ruido eléctrico del entorno, y puede leerse como `0`, como `1` o alternar entre ambos al acercar la mano.
+
+Este es el origen de los fallos que parecen aleatorios: el circuito funciona en la mesa y falla al moverlo, o muestra un carácter distinto cada vez sin que nadie toque nada.
+
+## La solución: resistencia de pull-down
+
+Se añade una resistencia entre la línea y tierra. Ahora la línea siempre tiene un camino definido:
+
+- **Interruptor cerrado** → la línea se conecta a `V_CC` y lee `1`.
+- **Interruptor abierto** → la resistencia la amarra a tierra y lee `0`.
+
+<Schematic
+  src="fundamentos/dip_switch_4_pulldown.svg"
+  alt="DIP switch de cuatro posiciones con resistencias de pull-down y salidas A, B, C y D"
+  caption="Cableado correcto: un lado del DIP switch al riel de VCC, y cada salida con su resistencia a tierra."
+/>
+
+Fíjate dónde se toma la señal: **entre el interruptor y la resistencia**, nunca después de la resistencia. Ese punto intermedio es el que cambia de nivel; el extremo inferior siempre está en tierra.
+
+Con el interruptor cerrado, `V_CC` y tierra quedan unidos a través de la resistencia, así que por ella circula corriente de forma permanente: `5 V / 1 kΩ = 5 mA` por cada bit en `1`. Con cuatro interruptores cerrados son 20 mA, algo irrelevante para una fuente de laboratorio pero que explica por qué no se pone una resistencia mucho más pequeña.
+
+### Con tres bits
+
+La Práctica 1 solo necesita `A`, `B` y `C`. Es el mismo circuito con una rama menos:
+
+<Schematic
+  src="fundamentos/dip_switch_3_pulldown.svg"
+  alt="DIP switch de tres posiciones con resistencias de pull-down y salidas A, B y C"
+  caption="Versión de tres bits: ocho combinaciones, de 000 a 111."
+/>
+
+Con tres interruptores se obtienen `2³ = 8` combinaciones, justo las ocho filas de la tabla de verdad de la Práctica 1. Con cuatro son `2⁴ = 16`.
+
+Da igual comprar un DIP switch de más posiciones de las que necesitas: las que sobran simplemente se dejan sin cablear.
+
+## Variante pull-up: activo en bajo
+
+Si lo que necesitas es lógica **activa en bajo** —por ejemplo para atacar un display de ánodo común—, se invierten los papeles: la resistencia va a `V_CC` y el interruptor a tierra.
+
+<Schematic
+  src="fundamentos/dip_switch_4_pullup.svg"
+  alt="DIP switch de cuatro posiciones con resistencias de pull-up hacia VCC y los interruptores a tierra"
+  caption="Cableado pull-up: la lectura queda invertida respecto al pull-down."
+/>
+
+El comportamiento se invierte por completo:
+
+| Estado del interruptor | Con pull-down | Con pull-up |
+|---|:---:|:---:|
+| Cerrado | `1` | `0` |
+| Abierto | `0` | `1` |
+
+Elige uno y mantenlo en todo el circuito. Mezclar ambos esquemas sin darse cuenta es una fuente clásica de tablas de verdad que no cuadran con lo que se ve en los LED.
+
+## Qué valor de resistencia usar
+
+Aquí hay una trampa. El consejo habitual de "usa 10 kΩ" viene del mundo de los microcontroladores y **no sirve para entradas TTL de la familia 74LS**.
+
+Una entrada `74LS` en estado bajo **entrega corriente hacia afuera**: hasta `0.4 mA`. Esa corriente atraviesa la resistencia de pull-down y genera una caída de tensión. Para que la entrada se siga leyendo como `0`, esa caída debe quedar por debajo del umbral de nivel bajo, que en la familia es `0.8 V`:
+
+```text
+R  ≤  0.8 V / 0.4 mA  =  2 kΩ
+```
+
+Por eso en estos circuitos el pull-down va de **1 kΩ o menos**. Con 10 kΩ, la caída sería de hasta `4 V`: la entrada leería `1` con el interruptor abierto, y el circuito parecería tener la lógica invertida.
+
+En pull-up la restricción casi desaparece, porque una entrada TTL en alto consume muy poca corriente. Ahí sí funcionan valores de varios kΩ.
+
+:::tip[Regla práctica]
+Con integrados `74LS`, usa **1 kΩ** para pull-down. Si el DIP switch alimenta directamente la base de un transistor en lugar de una entrada TTL, el valor lo manda la resistencia de base y hay más margen.
+:::
+
+## Cómo se conecta físicamente
+
+El encapsulado tiene los pines en dos filas. **Cada interruptor une el pin de una fila con el que le queda justo enfrente**, no con el de al lado. Es decir, los interruptores conectan *a lo ancho* del componente, no a lo largo.
+
+De ahí sale el cableado de los diagramas: una fila completa va al riel común —`V_CC` en pull-down, tierra en pull-up— y de cada pin de la fila opuesta sale una señal.
+
+Antes de soldar nada conviene verificar con un multímetro en continuidad: se acciona una posición y se comprueba qué par de pines quedan unidos. Toma un minuto y evita rehacer el montaje.
+
+Al montarlo en protoboard, el DIP switch va **a caballo del canal central**: los pines de un lado en una mitad y los del otro en la opuesta. Si queda entero dentro del mismo bloque de cinco agujeros, los dos lados de cada interruptor quedan unidos y no conmuta nada.
+
+## Errores que cuestan tiempo
+
+- **Omitir la resistencia.** El circuito funciona a ratos y falla al mover la mano cerca. Es el síntoma clásico de entrada flotante.
+- **Usar 10 kΩ con TTL.** La entrada nunca llega a leerse como `0`.
+- **Tomar la señal después de la resistencia** en vez de entre interruptor y resistencia. Ese punto está siempre a tierra.
+- **Cablear a lo largo del encapsulado** en vez de a lo ancho, asumiendo que los pines contiguos son los del mismo interruptor.
+- **Mezclar pull-up y pull-down** en distintas partes del mismo circuito sin documentarlo.
+
+## Dónde se aplica esto
+
+Las entradas `A`, `B` y `C` de la [Práctica 1](../../practicas/practica-1/) y los operandos de 4 bits de la [Práctica 2](../../practicas/practica-2/) se generan exactamente así.
+
+Para lo que va después de estas entradas, ver [Compuertas lógicas con transistores](../compuertas-transistorizadas/) y [Displays de 7 segmentos](../displays-7-segmentos/).

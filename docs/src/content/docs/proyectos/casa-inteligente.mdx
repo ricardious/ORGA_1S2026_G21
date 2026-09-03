@@ -1,0 +1,656 @@
+---
+title: "Proyecto: Casa Inteligente con Control de Ambientes y Ventilador Automatizado"
+description: Maqueta domótica con Arduino, escenas persistentes en EEPROM, LCD I2C, carga de configuración por archivo .org y control remoto por Bluetooth.
+---
+
+import Figure from '../../../components/Figure.astro';
+
+## Resumen
+
+El proyecto final del curso consistió en construir una **maqueta de casa inteligente** capaz de controlar cinco ambientes de iluminación, un ventilador DC y una puerta automatizada con servomotor.
+
+El sistema se apoya en un **Arduino Uno** como unidad central, usa la **EEPROM interna** para persistir escenas, una **pantalla LCD I2C** para retroalimentación local, una **aplicación de escritorio** que carga configuraciones `.org` por USB y una **aplicación móvil** que activa modos por Bluetooth clásico.
+
+A diferencia de las prácticas anteriores —resueltas con lógica discreta— aquí el eje del trabajo es la **organización de la memoria**: cómo se estructura una escena, en qué dirección vive, cuándo se escribe y cómo se valida antes de persistirla.
+
+<Figure
+  src="proyectos/casa-inteligente/maqueta_funcionando_con_puerta.jpeg"
+  alt="Maqueta física funcionando con iluminación activa y puerta en prueba"
+  caption="Maqueta en funcionamiento con iluminación activa y mecanismo de puerta en prueba."
+/>
+
+## Fechas clave
+
+- Asignación del proyecto / entrega del enunciado: **18/04/2026**
+- Fecha de entrega: **02/05/2026**
+
+## Marco formativo
+
+### Valor del proyecto
+
+El proyecto integra conceptos de organización computacional con una implementación embebida real. La persistencia en EEPROM, la comunicación serial, el control de periféricos y la organización modular del software permiten aplicar la teoría en un sistema funcional y verificable.
+
+### Competencias desarrolladas
+
+- Diseño e integración de sistemas embebidos con Arduino.
+- Uso de memoria EEPROM para almacenamiento persistente con direcciones fijas.
+- Definición y validación de formatos de entrada estructurados.
+- Control de actuadores y salidas digitales desde una arquitectura centralizada.
+- Desarrollo de interfaces de apoyo en escritorio y móvil.
+- Documentación técnica de circuitos, flujo de datos y entregables.
+
+### Objetivo SMART
+
+Diseñar, integrar y documentar antes del **2 de mayo de 2026** una maqueta funcional de casa inteligente con cinco ambientes, control de ventilador y puerta, escenas almacenadas en EEPROM, carga de configuración desde archivo `.org` y activación remota por Bluetooth, dejando evidencia del circuito, del código y del flujo completo de operación.
+
+## Objetivo
+
+### Objetivo general
+
+Construir una maqueta domótica a escala que permita definir escenas de iluminación desde una computadora, persistirlas en memoria no volátil y activarlas de forma remota, con retroalimentación local inmediata.
+
+### Objetivos específicos
+
+- Definir un formato de archivo `.org` legible para describir escenas.
+- Validar la configuración durante la transferencia serial, línea por línea.
+- Persistir cada escena en una dirección fija de EEPROM.
+- Activar escenas por comando serial o Bluetooth.
+- Controlar cinco zonas de iluminación, un ventilador DC y una puerta con servomotor.
+- Reportar estado y errores mediante LCD, LEDs indicadores y salida serial.
+
+## Enunciado interpretado
+
+### Problema a resolver
+
+Automatizar una vivienda a escala mediante escenas de iluminación predefinidas, persistencia de configuración y control remoto. El usuario define modos desde una computadora por medio de un archivo `.org`, el sistema los guarda en EEPROM, los activa por Bluetooth o serial y entrega retroalimentación inmediata mediante LCD y LEDs de estado.
+
+Además del control de luces, la solución incorpora un ventilador DC y una puerta automatizada con servomotor: el sistema deja de ser solo un ejemplo de persistencia de datos y se convierte en una maqueta domótica funcional.
+
+### Alcance
+
+El entregable cubre cuatro bloques principales:
+
+- El **sketch de Arduino** que implementa persistencia, lectura de comandos y control de LEDs, ventilador, LCD y puerta.
+- La aplicación de escritorio **`EEPROM_Liquid_Controller`**, usada para seleccionar y enviar archivos `.org` por USB.
+- La aplicación móvil **`eeprom_liquid_remote`**, usada para activar modos desde Bluetooth clásico.
+- Los **diagramas y evidencias visuales** del montaje y de las interfaces del sistema.
+
+## Requisitos funcionales
+
+### Control de escenas
+
+El sistema maneja cinco escenas: `modo_fiesta`, `modo_relajado`, `modo_noche`, `encender_todo` y `apagar_todo`. Cada escena almacena estado del ventilador, patrón de LEDs y mensaje para el LCD.
+
+### Persistencia en EEPROM
+
+Cada escena se guarda en una dirección fija mediante una estructura de **36 bytes**:
+
+| Campo | Tamaño | Función |
+|---|---:|---|
+| `magic` | 1 byte | Firma `0x42` que marca la escena como válida |
+| `fan` | 1 byte | Estado del ventilador (`FAN_ON` / `FAN_OFF`) |
+| `ledPattern` | 1 byte | Patrón de iluminación (`OFF`, `ON`, `ALTERNATING`) |
+| `message` | 33 bytes | Texto que se muestra en el LCD |
+
+La escritura ocurre **únicamente cuando una carga `.org` finaliza correctamente**. No hay siembra de valores por defecto al arrancar: si la EEPROM nunca recibió una configuración, la firma no coincide y el sistema reporta el modo como no configurado.
+
+### Control remoto por Bluetooth y serial
+
+El sketch procesa los comandos entrantes de forma idéntica vengan del monitor serial o del módulo HC-06:
+
+| Comando | Efecto |
+|---|---|
+| `modo_fiesta` | Aplica la escena de fiesta (LEDs alternándose) |
+| `modo_relajado` | Aplica la escena relajada |
+| `modo_noche` | Aplica la escena nocturna |
+| `encender_todo` | Enciende las cinco zonas |
+| `apagar_todo` | Apaga las cinco zonas |
+| `estado` | Devuelve `STATUS:<modo>:<OK\|ERROR>` por serial |
+| `abrir_puerta` | Lleva el servomotor a 90° |
+| `cerrar_puerta` | Lleva el servomotor a 0° |
+
+### Retroalimentación local
+
+- LCD I2C 16x2 con mensaje del modo y estado del ventilador.
+- LED **azul**: sistema listo.
+- LED **verde**: carga exitosa (parpadea tres veces).
+- LED **rojo**: error de configuración o de carga.
+
+### Actuadores y salidas
+
+- Cinco salidas de iluminación: sala, comedor, cocina, baño y habitación.
+- Un motor DC para el ventilador.
+- Un servomotor para apertura y cierre de puerta.
+- Un botón físico con *debounce* de 40 ms para alternar la puerta.
+
+## Arquitectura de la solución
+
+### Descripción general
+
+La arquitectura se divide en tres capas operativas:
+
+1. **Unidad central Arduino**: recibe comandos por serial, administra la EEPROM y controla las salidas físicas.
+2. **Interfaz de escritorio**: prepara y transmite archivos `.org` al Arduino por USB.
+3. **Interfaz móvil**: envía comandos por Bluetooth clásico para activar modos o consultar estado.
+
+### Flujo general del sistema
+
+| Origen | Destino y función |
+|---|---|
+| Archivo `.org` | App de escritorio → Serial USB → Arduino → EEPROM |
+| Teléfono Android | Bluetooth HC-06 → Arduino → luces, LCD, ventilador y puerta |
+| EEPROM | Arduino → recuperación y aplicación del modo activo |
+
+La lógica del sistema permanece concentrada en el Arduino: allí se validan escenas, se escriben datos en EEPROM y se activan luces, ventilador y puerta. Las aplicaciones son solo capas de transporte.
+
+### Bloques de software
+
+| Componente | Tecnología | Función |
+|---|---|---|
+| `EEPROM_Liquid_Controller` | Python + Tkinter | Selección de puerto, carga de archivo `.org` y envío serial |
+| `eeprom_liquid_remote` | Flutter | Conexión Bluetooth y envío de comandos de modo |
+| Sketch Arduino | C++ para Arduino | Procesamiento central, EEPROM, LCD, luces, ventilador y puerta |
+
+<Figure
+  src="proyectos/casa-inteligente/proteus/proteus_vista_general.png"
+  alt="Vista modular general del sistema en Proteus"
+  caption="Vista modular general: arriba los bloques de control y monitoreo, abajo las salidas físicas de la casa."
+/>
+
+## Distribución de pines
+
+La tabla corresponde de forma directa con las constantes definidas en el sketch, lo que permite relacionar cada bloque del diagrama de Proteus con una salida física real del Arduino.
+
+| Pin | Uso |
+|:---:|---|
+| 0 | `rx_bluetooth` |
+| 1 | `tx_bluetooth` |
+| 2 | `led_azul` |
+| 3 | `led_verde` |
+| 4 | `led_rojo` |
+| 5 | `luces_sala` |
+| 6 | `luces_comedor` |
+| 7 | `luces_cocina` |
+| 8 | `luces_bano` |
+| 9 | `servo_puerta` |
+| 10 | `motor_ventilador` |
+| 11 | `boton_puerta` |
+| 12 | `luces_habitacion` |
+| A4 | SDA del LCD I2C |
+| A5 | SCL del LCD I2C |
+
+La comunicación serial trabaja a **9600 baudios**, tanto para USB como para el módulo Bluetooth.
+
+```cpp
+const int led_azul = 2;
+const int led_verde = 3;
+const int led_rojo = 4;
+const int luces_sala = 5;
+const int luces_comedor = 6;
+const int luces_cocina = 7;
+const int luces_bano = 8;
+const int servo_puerta = 9;
+const int motor_ventilador = 10;
+const int boton_puerta = 11;
+const int luces_habitacion = 12;
+```
+
+## Formato del archivo `.org`
+
+### Sintaxis reconocida
+
+- El archivo debe iniciar con `conf_ini`.
+- Debe cerrar con `conf:fin`.
+- Los comentarios usan `//`.
+- Cada modo se declara por su nombre en una línea propia.
+- Para cada modo deben declararse `Ventilador:` y `LED'S:`.
+- `Mensaje en LCD:` es opcional; si no aparece, el sistema usa un mensaje por defecto.
+
+La validación se hace durante la lectura serial, **línea por línea**. Así, cuando aparece un error, el sistema puede marcarlo enseguida en el LCD, en el LED rojo y en la salida serial, sin esperar a que termine la transferencia.
+
+```cpp
+void processLine(String rawLine) {
+  String line = stripComment(rawLine);
+  line.trim();
+  if (line.length() == 0) return;
+
+  if (line == "conf_ini") {
+    beginUpload();
+    return;
+  }
+
+  if (uploadActive) {
+    processUploadLine(line);
+    return;
+  }
+
+  processCommand(line);
+}
+```
+
+Esa función es la bisagra del sistema: separa el **modo de carga** del **modo de comandos**. Mientras `uploadActive` esté en alto, una línea como `modo_fiesta` no activa la escena, sino que abre su definición.
+
+### Valores válidos
+
+| Campo | Valores reconocidos |
+|---|---|
+| Modo | `modo_fiesta`, `modo_relajado`, `modo_noche`, `encender_todo`, `apagar_todo` |
+| `Ventilador:` | `ON`, `OFF` |
+| `LED'S:` | `ON`, `OFF`, `Alternandose` |
+
+### Ejemplo completo
+
+Este es el archivo de referencia incluido en el repositorio (`examples/modos_completos.org`):
+
+```text
+// Configuracion de modos para el sistema de control
+conf_ini
+
+modo_fiesta
+Mensaje en LCD: "Modo: FIESTA."
+Ventilador: ON
+LED'S: Alternandose
+
+modo_relajado
+Mensaje en LCD: "Modo: RELAJADO."
+Ventilador: OFF
+LED'S: OFF
+
+modo_noche
+Mensaje en LCD: "Modo: NOCHE."
+Ventilador: OFF
+LED'S: OFF
+
+encender_todo
+Mensaje en LCD: "Modo: TODO ON."
+Ventilador: ON
+LED'S: ON
+
+apagar_todo
+Mensaje en LCD: "Modo: TODO OFF."
+Ventilador: OFF
+LED'S: OFF
+
+conf:fin
+```
+
+### Errores detectados
+
+La carga se cancela por completo si el sketch detecta cualquiera de estas condiciones:
+
+| Motivo reportado | Causa |
+|---|---|
+| `modo no definido` | Aparece un atributo antes de declarar el modo al que pertenece |
+| `modo incompleto` | Un modo se cierra sin `Ventilador:` o sin `LED'S:` |
+| `linea invalida` | La línea no corresponde a ningún modo ni atributo conocido |
+| `ventilador invalido` | Valor distinto de `ON` u `OFF` |
+| `leds invalido` | Valor distinto de `ON`, `OFF` o `Alternandose` |
+| `archivo vacio` | Se recibió `conf:fin` sin ningún modo declarado |
+
+Cuando esto ocurre, **no se escribe nada en EEPROM**: la configuración previa queda intacta.
+
+```cpp
+void failUpload(const char *reason) {
+  uploadActive = false;
+  currentUploadMode = NO_MODE;
+  systemError = true;
+  digitalWrite(led_azul, LOW);
+  digitalWrite(led_verde, LOW);
+  digitalWrite(led_rojo, HIGH);
+  showLcd("Error archivo", reason);
+  Serial.print("UPLOAD_ERROR:");
+  Serial.println(reason);
+}
+```
+
+## Mapa de direcciones EEPROM
+
+Cada escena ocupa 36 bytes y arranca en una dirección constante definida de forma literal en el sketch. Los valores de la última columna son los que escribe el archivo de referencia, no valores precargados de fábrica.
+
+| Modo | Dirección | Ventilador | LEDs | Mensaje |
+|---|---:|:---:|:---:|---|
+| `modo_fiesta` | 0 | ON | Alternándose | `Modo: FIESTA.` |
+| `modo_relajado` | 36 | OFF | OFF | `Modo: RELAJADO.` |
+| `modo_noche` | 72 | OFF | OFF | `Modo: NOCHE.` |
+| `encender_todo` | 108 | ON | ON | `Modo: TODO ON.` |
+| `apagar_todo` | 144 | OFF | OFF | `Modo: TODO OFF.` |
+
+```cpp
+const int EEPROM_ADDR_FIESTA = 0;
+const int EEPROM_ADDR_RELAJADO = 36;
+const int EEPROM_ADDR_NOCHE = 72;
+const int EEPROM_ADDR_ENCENDER_TODO = 108;
+const int EEPROM_ADDR_APAGAR_TODO = 144;
+```
+
+La escritura persistente se hace sobre esas posiciones mediante `EEPROM.put()` usando la estructura `SceneConfig`, de modo que cada modo conserva su configuración incluso después de reiniciar el Arduino.
+
+```cpp
+void writeSceneToEeprom(byte mode, PendingScene scene) {
+  SceneConfig stored;
+  stored.magic = EEPROM_MAGIC;
+  stored.fan = scene.fan;
+  stored.ledPattern = scene.ledPattern;
+  copyMessage(String(scene.message), stored.message);
+  EEPROM.put(eepromAddress(mode), stored);
+}
+```
+
+El campo `magic` (`0x42`) es lo que permite distinguir una escena real de memoria sin inicializar. Si no coincide, `applyMode()` no enciende nada y muestra `Modo sin config` en el LCD.
+
+## Implementación en Proteus
+
+### Unidad central y periféricos
+
+La unidad central es el bloque que arranca el sistema: configura pines, habilita la comunicación serial, conecta el servomotor e inicializa el LCD. Después del arranque el sistema queda listo para recibir comandos o una carga de configuración.
+
+<Figure
+  src="proyectos/casa-inteligente/proteus/proteus_arduino_unidad_central.png"
+  alt="Unidad central de procesamiento basada en Arduino en Proteus"
+  caption="Unidad central de procesamiento basada en Arduino."
+/>
+
+```cpp
+void setup() {
+  Serial.begin(BAUDRATE);
+  doorServo.attach(servo_puerta);
+  closeDoor();
+  lcd.init();
+  lcd.backlight();
+  setReadyState();
+}
+```
+
+El receptor **HC-06** es el canal de control remoto. Por aquí llegan textos como `modo_fiesta`, `modo_noche` o `estado`, que el sketch procesa igual que si vinieran del monitor serial.
+
+<Figure
+  src="proyectos/casa-inteligente/proteus/proteus_bluetooth_hc06.png"
+  alt="Receptor Bluetooth HC-06 en el esquema de Proteus"
+  caption="Receptor Bluetooth HC-06."
+/>
+
+La pantalla LCD muestra el estado del sistema. El Arduino la actualiza cada vez que cambia de modo o detecta un problema de configuración.
+
+<Figure
+  src="proyectos/casa-inteligente/proteus/proteus_lcd_i2c.png"
+  alt="Interfaz de monitoreo con LCD I2C en Proteus"
+  caption="Interfaz de monitoreo con LCD I2C."
+/>
+
+### Módulos de salida
+
+El bloque de indicadores resume tres estados del sistema: azul para listo, verde para carga exitosa y rojo para error. Estas salidas coinciden con las rutinas `setReadyState()`, `blinkGreenSuccess()` y `failUpload()` del sketch.
+
+<Figure
+  src="proyectos/casa-inteligente/proteus/proteus_leds_estado.png"
+  alt="Bloque de LEDs indicadores de estado en Proteus"
+  caption="Indicadores de configuración: listo, carga exitosa y error."
+/>
+
+La iluminación por zonas representa cinco salidas independientes. El proyecto no trabaja con un único LED general, sino con un conjunto de ambientes que pueden quedar todos encendidos, todos apagados o alternándose en el modo fiesta.
+
+<Figure
+  src="proyectos/casa-inteligente/proteus/proteus_iluminacion_zonas.png"
+  alt="Bloque de iluminación domótica por zonas en Proteus"
+  caption="Iluminación domótica por zonas: sala, comedor, cocina, baño y habitación."
+/>
+
+```cpp
+void setAllRoomLights(byte state) {
+  digitalWrite(luces_sala, state);
+  digitalWrite(luces_comedor, state);
+  digitalWrite(luces_cocina, state);
+  digitalWrite(luces_bano, state);
+  digitalWrite(luces_habitacion, state);
+}
+```
+
+En el modo fiesta el sketch no deja las luces fijas: las alterna cada 450 ms usando `millis()`, sin bloquear el bucle principal. Por eso este bloque no se queda en una conexión de LEDs, sino que responde a un patrón temporal real.
+
+```cpp
+if (now - lastAlternateTick < 450) return;
+lastAlternateTick = now;
+alternatePhase = !alternatePhase;
+digitalWrite(luces_sala, alternatePhase ? HIGH : LOW);
+digitalWrite(luces_comedor, alternatePhase ? LOW : HIGH);
+digitalWrite(luces_cocina, alternatePhase ? HIGH : LOW);
+digitalWrite(luces_bano, alternatePhase ? LOW : HIGH);
+digitalWrite(luces_habitacion, alternatePhase ? HIGH : LOW);
+```
+
+El módulo de ventilación se controla como una salida digital simple: el Arduino solo decide si el ventilador está encendido o apagado según lo guardado en la escena activa.
+
+<Figure
+  src="proyectos/casa-inteligente/proteus/proteus_control_ventilador.png"
+  alt="Control de ventilación con motor DC en Proteus"
+  caption="Control de ventilación con motor DC."
+/>
+
+El sistema de control de acceso corresponde a la parte mecánica de la puerta. El botón físico del pin 11 pasa por una lógica de antirrebote de 40 ms y luego alterna entre abrir y cerrar.
+
+<Figure
+  src="proyectos/casa-inteligente/proteus/proteus_control_puerta.png"
+  alt="Sistema de control de acceso para la puerta en Proteus"
+  caption="Sistema de control de acceso para la puerta."
+/>
+
+```cpp
+if ((millis() - lastDoorDebounce) > 40) {
+  if (reading != stableDoorButtonState) {
+    stableDoorButtonState = reading;
+    if (stableDoorButtonState == LOW) {
+      if (doorOpen) closeDoor();
+      else openDoor();
+    }
+  }
+}
+```
+
+## Interfaces del sistema
+
+### Aplicación de escritorio
+
+La pantalla inicial es el punto de entrada para cargar escenas persistentes. Desde aquí el usuario selecciona el puerto, prepara el archivo y lo envía al Arduino.
+
+<Figure
+  src="proyectos/casa-inteligente/apps/app_escritorio_inicio.png"
+  alt="Pantalla inicial de la aplicación de escritorio EEPROM Liquid Controller"
+  caption="Pantalla inicial de la aplicación de escritorio."
+/>
+
+El contenido `.org` se trabaja como texto editable y visible antes de llegar al Arduino, lo que permite corregir la configuración sin salir de la aplicación.
+
+<Figure
+  src="proyectos/casa-inteligente/apps/app_escritorio_archivo_cargado.png"
+  alt="Archivo .org cargado y editable en la aplicación de escritorio"
+  caption="Archivo cargado en la aplicación de escritorio."
+/>
+
+Durante la fase de transferencia el Arduino ya dejó de interpretar las entradas como comandos normales y las procesa como líneas de configuración.
+
+<Figure
+  src="proyectos/casa-inteligente/apps/app_escritorio_transferencia.png"
+  alt="Transferencia activa del archivo .org hacia el Arduino"
+  caption="Transferencia activa del archivo .org."
+/>
+
+### Aplicación móvil
+
+La aplicación móvil opera en dos pasos: primero la selección del dispositivo Bluetooth y luego el envío de comandos de modo.
+
+<Figure
+  src="proyectos/casa-inteligente/apps/app_movil_dispositivos_bluetooth.jpeg"
+  alt="Pantalla de descubrimiento de dispositivos Bluetooth de la aplicación móvil"
+  caption="Descubrimiento y selección del módulo HC-06."
+  maxWidth="22rem"
+/>
+
+<Figure
+  src="proyectos/casa-inteligente/apps/app_movil_panel_principal.jpeg"
+  alt="Panel principal de la aplicación móvil con los botones de modo"
+  caption="Panel principal con los comandos de escena y de puerta."
+  maxWidth="22rem"
+/>
+
+## Evidencia física
+
+<Figure
+  src="proyectos/casa-inteligente/montaje_general_protoboard_lcd.jpeg"
+  alt="Montaje general con Arduino, protoboard de control y LCD I2C conectados"
+  caption="Montaje general con Arduino, protoboard de control y LCD I2C."
+/>
+
+<Figure
+  src="proyectos/casa-inteligente/cableado_lateral_maqueta_arduino.jpeg"
+  alt="Vista lateral del cableado entre la maqueta, el Arduino y el módulo LCD"
+  caption="Vista lateral del cableado entre la maqueta, el Arduino y el módulo LCD."
+/>
+
+<Figure
+  src="proyectos/casa-inteligente/detalle_arduino_uno_r3.jpeg"
+  alt="Acercamiento a la zona de conexiones y pruebas del Arduino Uno R3"
+  caption="Acercamiento a la zona de conexiones durante el montaje."
+/>
+
+## Fragmentos clave del código
+
+### Aplicación de escenas
+
+`applyMode()` enlaza EEPROM, LEDs de estado, LCD, ventilador e iluminación. Primero valida que la escena leída tenga firma correcta, luego actualiza el estado general del sistema y finalmente activa las salidas físicas.
+
+```cpp
+void applyMode(byte mode) {
+  SceneConfig scene = readSceneFromEeprom(mode);
+  if (scene.magic != EEPROM_MAGIC) {
+    systemError = true;
+    digitalWrite(led_rojo, HIGH);
+    showLcd("Modo sin config", modeName(mode));
+    return;
+  }
+
+  activeMode = mode;
+  systemError = false;
+  digitalWrite(led_rojo, LOW);
+  digitalWrite(led_azul, HIGH);
+  digitalWrite(motor_ventilador, scene.fan == FAN_ON ? HIGH : LOW);
+  applyLedPattern(scene.ledPattern);
+  showLcd(scene.message,
+          scene.fan == FAN_ON ? "Ventilador ON" : "Ventilador OFF");
+}
+```
+
+### Persistencia de escenas
+
+La escritura en EEPROM se realiza al finalizar correctamente la carga. Solo se persisten los modos efectivamente declarados en el archivo (`touched`), de modo que un `.org` parcial no borra las escenas restantes.
+
+```cpp
+void finishUpload() {
+  if (!commitCurrentUploadMode()) {
+    failUpload("modo incompleto");
+    return;
+  }
+
+  for (byte i = 0; i < MODE_COUNT; i++) {
+    if (pendingScenes[i].touched) {
+      writeSceneToEeprom(i, pendingScenes[i]);
+    }
+  }
+}
+```
+
+### Comandos operativos
+
+Además de aplicar modos, el sketch soporta comandos puntuales que no requieren recargar la configuración completa.
+
+```cpp
+if (command == "estado") {
+  printStatus();
+  return;
+}
+if (command == "abrir_puerta") {
+  openDoor();
+  return;
+}
+if (command == "cerrar_puerta") {
+  closeDoor();
+  return;
+}
+```
+
+## Pruebas y validación
+
+### Protocolo serial observable
+
+El sistema es verificable desde el monitor serial sin necesidad de instrumentación adicional, porque cada transición publica una línea:
+
+| Salida serial | Significado |
+|---|---|
+| `READY` | El sistema arrancó y espera comandos |
+| `STATUS:<modo>:OK` | Respuesta a `estado` con la escena activa |
+| `STATUS:<modo>:ERROR` | Hay un error de configuración vigente |
+| `UPLOAD_ERROR:<motivo>` | La carga `.org` se canceló, con la causa |
+
+### Casos de validación ejecutados
+
+| Caso | Condición | Resultado esperado |
+|---|---|---|
+| Arranque en frío | EEPROM sin configurar | LCD muestra `Modo sin config` al pedir un modo |
+| Carga válida completa | `modos_completos.org` | LED verde parpadea 3 veces, LCD `Configuracion guardada` |
+| Carga parcial | `modo_fiesta.org` | Solo se sobrescribe la escena de fiesta |
+| Modo incompleto | Modo sin `LED'S:` | `UPLOAD_ERROR:modo incompleto`, EEPROM intacta |
+| Valor inválido | `Ventilador: TAL VEZ` | `UPLOAD_ERROR:ventilador invalido` |
+| Persistencia | Reinicio tras carga válida | Las escenas siguen disponibles sin recargar |
+| Control remoto | Comando por HC-06 | Misma respuesta que por USB |
+| Puerta manual | Pulsación del botón físico | Alterna 0° / 90° sin rebotes |
+
+### Hallazgos
+
+- Separar la validación de la escritura fue determinante: al escribir solo en `finishUpload()`, un archivo mal formado nunca deja la EEPROM en estado inconsistente.
+- Eliminar la siembra de valores por defecto hizo el comportamiento más honesto: un modo sin configurar se reporta como tal en vez de simular una escena que nunca se cargó.
+- El patrón alternado con `millis()` evitó bloquear el bucle, lo que mantiene la puerta y los comandos remotos con respuesta inmediata durante el modo fiesta.
+
+## Recursos y herramientas utilizadas
+
+### Hardware
+
+- Arduino Uno o compatible
+- Módulo Bluetooth HC-06
+- Pantalla LCD I2C 16x2
+- LEDs para los cinco ambientes
+- LEDs azul, verde y rojo de estado
+- Motor DC para ventilador
+- Servomotor para la puerta
+- Resistencias y cableado
+- Fuente de alimentación para prototipo
+
+### Software
+
+- Arduino IDE o `arduino-cli`
+- Librerías `LiquidCrystal_I2C`, `Servo` y `EEPROM`
+- Proteus para la simulación
+- Python 3.11 para la app de escritorio
+- Flutter para la app móvil
+- Git y GitHub para control de versiones
+
+## Presupuesto
+
+| Componente | Cantidad | Unitario (Q) | Subtotal (Q) |
+|---|---:|---:|---:|
+| Módulo Bluetooth HC-06 (3.6V–6V) | 1 | 110.00 | 110.00 |
+| LCD 16x2 verde + módulo I2C | 1 | 50.00 | 50.00 |
+| Servomotor SG90 180° 5VDC | 1 | 30.00 | 30.00 |
+| LED amarillo | 5 | 1.00 | 5.00 |
+| LED rojo | 1 | 1.00 | 1.00 |
+| LED verde | 1 | 1.00 | 1.00 |
+| LED azul | 1 | 1.00 | 1.00 |
+| **Total confirmado** | | | **198.00** |
+
+Se registró como material disponible —sin costo imputado al proyecto— el Arduino Uno, el motor DC, las resistencias, el cableado, la fuente y el material de la maqueta, por provenir de prácticas anteriores.
+
+## Conclusiones
+
+- El proyecto integra configuración externa, persistencia en EEPROM, control remoto y visualización local en un solo sistema coherente.
+- La separación entre Arduino, aplicación de escritorio y aplicación móvil ordena el funcionamiento: el microcontrolador concentra la lógica y las apps son solo transporte.
+- Validar durante la transferencia y escribir solo al final es lo que hace confiable la persistencia: ningún archivo inválido corrompe la configuración vigente.
+- El uso de direcciones fijas y una firma de validez convierte a la EEPROM en una estructura de datos legible, no en un volcado opaco de bytes.
+- La maqueta física demuestra la integración completa entre electrónica, mecánica y las tres capas de software.

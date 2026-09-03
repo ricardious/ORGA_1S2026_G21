@@ -1,0 +1,116 @@
+---
+title: Displays de 7 segmentos
+description: Diferencia entre cátodo común y ánodo común, por qué no basta con invertir la salida, y cómo se conecta cada segmento.
+sidebar:
+  order: 5
+---
+
+import Schematic from '../../../components/Schematic.astro';
+
+De todo lo que se hizo en la [Práctica 1](../../practicas/practica-1/), esto es lo que más confusión causa: **cátodo común y ánodo común no son el mismo circuito con los LEDs al revés**. Son dos lógicas distintas, y confundirlas obliga a rehacer los mapas de Karnaugh a mitad del diseño.
+
+## Qué hay dentro de un segmento
+
+Cada una de las siete barras del display —más el punto decimal— contiene un LED o un pequeño grupo de LEDs internos, según el tamaño y modelo. Todos los segmentos comparten una terminal, y esa terminal común es la que da nombre al tipo de display.
+
+Lo que cambia entre un tipo y otro es **hacia dónde va esa terminal común**:
+
+| Tipo | Terminal común conectada a | El segmento enciende cuando su línea está en |
+|---|---|:---:|
+| Cátodo común | `GND` | **alto** (`1`) |
+| Ánodo común | `V_CC` | **bajo** (`0`) |
+
+## Qué resistencia usar en cada segmento
+
+En el montaje de la práctica, alimentado con **5 V** y usando displays rojos, se coloca una resistencia de **220 Ω en serie con cada segmento**:
+
+```text
+R_a = R_b = R_c = R_d = R_e = R_f = R_g = R_dp = 220 Ω
+```
+
+No se usa una sola resistencia para todo el display. Cada línea —incluido el punto decimal `dp`— necesita la suya para limitar la corriente y mantener un brillo uniforme.
+
+El valor se estima con:
+
+```text
+R = (V_CC − V_F − V_driver) / I_LED
+```
+
+Tomando `V_CC = 5 V`, una caída aproximada de `V_F = 2 V` para un LED rojo y `V_driver ≈ 0,2 V` en el transistor, los valores habituales quedan así:
+
+| Resistencia por segmento | Corriente aproximada | Resultado |
+|---:|---:|---|
+| **220 Ω** | **12,7 mA** | Valor utilizado en la práctica; mayor brillo |
+| 330 Ω | 8,5 mA | Menor consumo y buen brillo |
+| 470 Ω | 6,0 mA | Brillo más bajo |
+
+:::tip[Valor para este proyecto]
+Usa **220 Ω por segmento**. Si el display resulta demasiado brillante o quieres reducir el consumo, puedes usar **330 Ω**. Para otro color o modelo de display, consulta su caída directa `V_F` y su corriente máxima.
+:::
+
+## Cátodo común: activo en alto
+
+Todos los cátodos se unen y van a tierra. Para encender un segmento hay que llevar su ánodo a `V_CC` a través de una resistencia limitadora.
+
+<Schematic
+  src="fundamentos/display_7segmentos_catodo_comun_3led_paralelo.svg"
+  alt="Diagrama de un display de 7 segmentos de cátodo común con los LEDs de cada segmento en paralelo"
+  caption="Cátodo común: la terminal compartida va a GND y cada segmento se activa llevándolo a VCC."
+/>
+
+Este es el caso intuitivo: **`1` enciende, `0` apaga**. La tabla de verdad se lee directamente y las ecuaciones salen en forma **SOP** (suma de productos) a partir de los minterms.
+
+## Ánodo común: activo en bajo
+
+Aquí ocurre lo contrario. Todos los ánodos se unen y van a `V_CC`, y el segmento enciende cuando su cátodo se conecta a tierra.
+
+<Schematic
+  src="fundamentos/display_7segmentos_anodo_comun_3led_paralelo.svg"
+  alt="Diagrama de un display de 7 segmentos de ánodo común con los LEDs de cada segmento en paralelo"
+  caption="Ánodo común: la terminal compartida va a VCC y cada segmento se activa llevándolo a GND."
+/>
+
+Compara los dos diagramas: son el mismo dibujo con `V_CC` y `GND` intercambiados. Pero esa inversión eléctrica cambia por completo cómo se diseña la lógica: **`0` enciende, `1` apaga**, y las ecuaciones se trabajan en forma **POS** (producto de sumas) a partir de los maxterms.
+
+## Por qué no basta con "invertir la salida"
+
+Esta es la parte donde se pierde tiempo. Convertir un diseño de cátodo a ánodo común parece una sola operación, pero en la Práctica 1 fueron **dos transformaciones independientes**, porque el display trasero además iba en espejo:
+
+1. **Espejo físico** — al ver el display desde atrás, los segmentos se intercambian por pares: `b ↔ f` y `c ↔ e`. Los segmentos `a`, `d`, `g` y `dp` quedan igual, porque son simétricos respecto al eje vertical.
+2. **Inversión lógica** — cada salida se complementa, porque en ánodo común el `0` es el que enciende.
+
+Aplicar solo una de las dos produce un display que enciende los segmentos equivocados o que muestra el carácter invertido. Y como las dos operaciones se parecen conceptualmente, es fácil creer que ya se hicieron ambas cuando solo se hizo una.
+
+:::caution[El error más caro]
+Diseñar todo en SOP para cátodo común y, al llegar al ánodo, intentar reutilizar las mismas ecuaciones negándolas al final. La negación de una suma de productos no es la suma de los productos negados: hay que volver al mapa de Karnaugh y agrupar los ceros para obtener la forma POS.
+:::
+
+## Cómo se conectan los LEDs de cada segmento
+
+Los diagramas anteriores muestran los LEDs de cada segmento **en paralelo**. También se pueden conectar en serie:
+
+<Schematic
+  src="fundamentos/display_7segmentos_anodo_comun_3led.svg"
+  alt="Display de 7 segmentos de ánodo común con los LEDs de cada segmento conectados en serie"
+  caption="Variante en serie: las caídas de tensión de los LEDs se suman."
+/>
+
+La diferencia importa a la hora de alimentar el circuito:
+
+- **En serie**, las caídas de tensión directa de los LEDs **se suman**. Tres LEDs en serie necesitan bastante más tensión de alimentación que uno solo, y si no la hay, sencillamente no encienden.
+- **En paralelo**, la tensión requerida es la de un solo LED, pero la corriente total se reparte entre las ramas.
+
+En ambos casos, **cada segmento lleva su propia resistencia limitadora de 220 Ω** (`R_a`, `R_b`, `R_c`…), no una compartida en la terminal común. Si pones una sola resistencia en el pin común, el brillo cambia según cuántos segmentos estén encendidos: un `1` se ve mucho más brillante que un `8`.
+
+## Errores que cuestan tiempo
+
+- **Comprar el tipo equivocado.** Cátodo y ánodo común se ven idénticos por fuera. Verifica el código del componente antes de diseñar la lógica alrededor.
+- **Una sola resistencia en el pin común**, que produce brillo variable según el carácter mostrado.
+- **Asumir que el espejo es solo invertir.** Son dos transformaciones: intercambio de segmentos y complemento lógico.
+- **Confundir la numeración de pines.** El orden físico de los pines no sigue el orden alfabético de los segmentos; hay que consultar la hoja de datos del display concreto.
+
+## Dónde se aplica esto
+
+La [Práctica 1](../../practicas/practica-1/) implementa las dos versiones en paralelo —frontal en cátodo común con ecuaciones SOP, y trasera en ánodo común con ecuaciones POS y espejo— e incluye los mapas de Karnaugh completos de cada segmento en ambas formas.
+
+Para construir las compuertas que alimentan estos segmentos, ver [Compuertas lógicas con transistores](../compuertas-transistorizadas/).
